@@ -50,14 +50,17 @@ export default function CourseForm({ course, onSubmit, onCancel }: CourseFormPro
     hoje.setHours(0,0,0,0);
     const dataInicio = formData.startDate ? new Date(formData.startDate) : null;
     const dataFim = formData.endDate ? new Date(formData.endDate) : null;
+    
     if (dataInicio && dataFim && dataInicio > dataFim) {
       setDateError('A data de início não pode ser posterior à data de fim.');
       return;
     }
-    if (dataInicio && dataInicio < hoje) {
+    
+    if (!course && dataInicio && dataInicio < hoje) {
       setDateError('A data de início não pode ser anterior à data atual.');
       return;
     }
+    
     const startDateISO = formData.startDate ? new Date(formData.startDate).toISOString() : '';
     const endDateISO = formData.endDate ? new Date(formData.endDate).toISOString() : '';
     const dataToSend = {
@@ -99,7 +102,6 @@ export default function CourseForm({ course, onSubmit, onCancel }: CourseFormPro
         };
         reader.readAsDataURL(file);
         
-        // Upload para Cloudinary
         const cloudinaryUrl = await uploadImageToCloudinary(file);
         handleChange('image', cloudinaryUrl);
       } catch (error) {
