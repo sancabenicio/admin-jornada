@@ -6,35 +6,38 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAdmin } from '@/contexts/AdminContext';
+import { NotificationType } from '@/types';
 
 export default function NotificationDropdown() {
   const [isOpen, setIsOpen] = useState(false);
   const { notifications, markNotificationAsRead, markAllNotificationsAsRead } = useAdmin();
 
-  const unreadNotifications = notifications.filter(n => !n.read);
+  const unreadNotifications = notifications.filter(n => !n.isRead);
   const recentNotifications = notifications.slice(0, 5);
 
-  const getNotificationIcon = (type: string) => {
+  const getNotificationIcon = (type: NotificationType) => {
     switch (type) {
-      case 'success':
+      case 'SUCCESS':
         return '✅';
-      case 'warning':
+      case 'WARNING':
         return '⚠️';
-      case 'error':
+      case 'ERROR':
         return '❌';
+      case 'INFO':
       default:
         return 'ℹ️';
     }
   };
 
-  const getNotificationColor = (type: string) => {
+  const getNotificationColor = (type: NotificationType) => {
     switch (type) {
-      case 'success':
+      case 'SUCCESS':
         return 'border-l-green-500 bg-green-50';
-      case 'warning':
+      case 'WARNING':
         return 'border-l-yellow-500 bg-yellow-50';
-      case 'error':
+      case 'ERROR':
         return 'border-l-red-500 bg-red-50';
+      case 'INFO':
       default:
         return 'border-l-blue-500 bg-blue-50';
     }
@@ -85,7 +88,7 @@ export default function NotificationDropdown() {
                     <div
                       key={notification.id}
                       className={`p-4 border-l-4 border-b border-slate-100 last:border-b-0 transition-colors hover:bg-slate-50 ${
-                        !notification.read ? getNotificationColor(notification.type) : 'border-l-slate-200'
+                        !notification.isRead ? getNotificationColor(notification.type) : 'border-l-slate-200'
                       }`}
                     >
                       <div className="flex items-start justify-between">
@@ -95,7 +98,7 @@ export default function NotificationDropdown() {
                             <h4 className="text-sm font-medium text-slate-900">
                               {notification.title}
                             </h4>
-                            {!notification.read && (
+                            {!notification.isRead && (
                               <Badge className="h-2 w-2 rounded-full bg-blue-500 p-0" />
                             )}
                           </div>
@@ -103,20 +106,11 @@ export default function NotificationDropdown() {
                             {notification.message}
                           </p>
                           <p className="text-xs text-slate-400">
-                            {new Date(notification.timestamp).toLocaleString('pt-PT')}
+                            {new Date(notification.createdAt).toLocaleString('pt-PT')}
                           </p>
                         </div>
                         <div className="flex items-center space-x-1 ml-2">
-                          {notification.actionUrl && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-6 w-6 p-0 text-slate-400 hover:text-slate-600"
-                            >
-                              <ExternalLink className="h-3 w-3" />
-                            </Button>
-                          )}
-                          {!notification.read && (
+                          {!notification.isRead && (
                             <Button
                               variant="ghost"
                               size="sm"

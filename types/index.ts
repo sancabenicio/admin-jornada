@@ -1,7 +1,7 @@
-export type CourseStatus = 'Aberto' | 'Fechado' | 'Em Curso' | 'Concluído';
-export type CandidateStatus = 'Inscrito' | 'Aceite' | 'Em Formação' | 'Concluído' | 'Rejeitado';
-export type BlogStatus = 'Rascunho' | 'Publicado';
-export type NotificationType = 'info' | 'success' | 'warning' | 'error';
+export type CourseStatus = 'OPEN' | 'IN_PROGRESS' | 'CLOSED' | 'COMPLETED';
+export type CandidateStatus = 'REGISTERED' | 'ACCEPTED' | 'IN_TRAINING' | 'COMPLETED' | 'REJECTED';
+export type BlogStatus = 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
+export type NotificationType = 'INFO' | 'SUCCESS' | 'WARNING' | 'ERROR';
 
 export interface Course {
   id: string;
@@ -16,9 +16,10 @@ export interface Course {
   candidatesCount: number;
   acceptedCount: number;
   createdAt: string;
+  updatedAt: string;
   image?: string;
-  price?: number;
-  location?: string;
+  price: number;
+  location: string;
 }
 
 export interface Candidate {
@@ -26,14 +27,25 @@ export interface Candidate {
   name: string;
   email: string;
   country: string;
-  contact: string;
+  phone: string;
   courseId: string;
   courseName: string;
   status: CandidateStatus;
   appliedAt: string;
+  createdAt: string;
+  updatedAt: string;
   notes?: string;
-  documentType?: string;
-  documents?: string[];
+  age?: number;
+  education?: string;
+  experience?: string;
+  submittedDocument?: string;
+  certificates: string[];
+  passport?: string;
+  attachments: string[];
+  course?: {
+    id: string;
+    name: string;
+  };
 }
 
 export interface BlogPost {
@@ -41,15 +53,15 @@ export interface BlogPost {
   title: string;
   content: string;
   excerpt: string;
-  coverImage: string;
+  coverImage?: string;
   tags: string[];
   category: string;
   status: BlogStatus;
   publishedAt?: string;
   createdAt: string;
   updatedAt: string;
-  author?: string;
-  readTime?: number;
+  author: string;
+  readTime: number;
 }
 
 export interface EmailTemplate {
@@ -57,7 +69,7 @@ export interface EmailTemplate {
   name: string;
   subject: string;
   content: string;
-  variables: string[];
+  type: 'WELCOME' | 'ACCEPTANCE' | 'REJECTION' | 'REMINDER';
 }
 
 export interface DashboardStats {
@@ -65,8 +77,8 @@ export interface DashboardStats {
   activeCourses: number;
   totalCandidates: number;
   acceptedCandidates: number;
-  publishedPosts: number;
-  pendingApplications: number;
+  totalBlogPosts: number;
+  recentApplications: number;
 }
 
 export interface Notification {
@@ -74,9 +86,8 @@ export interface Notification {
   type: NotificationType;
   title: string;
   message: string;
-  timestamp: string;
-  read: boolean;
-  actionUrl?: string;
+  isRead: boolean;
+  createdAt: string;
 }
 
 export interface AdminProfile {

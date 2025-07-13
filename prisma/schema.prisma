@@ -1,0 +1,154 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id         String   @id @default(cuid())
+  email      String   @unique
+  name       String
+  password   String
+  role       Role     @default(ADMIN)
+  avatar     String?
+  phone      String?
+  department String?
+  resetToken String?
+  resetTokenExpiry DateTime?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("users")
+}
+
+model Course {
+  id               String   @id @default(cuid())
+  name             String
+  description      String
+  duration         String
+  startDate        DateTime
+  endDate          DateTime
+  maxStudents      Int
+  applicationLimit Int
+  status           CourseStatus @default(OPEN)
+  price            Float
+  location         String
+  image            String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  candidates Candidate[]
+
+  @@map("courses")
+}
+
+model Candidate {
+  id         String           @id @default(cuid())
+  name       String
+  email      String
+  country    String
+  phone      String
+  age        Int?
+  education  String?
+  experience String?
+  notes      String?
+  status     CandidateStatus  @default(REGISTERED)
+  appliedAt  DateTime         @default(now())
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  courseId   String
+  course     Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  submittedDocument String?
+  certificates      String[]
+  passport         String?
+  attachments      String[]
+
+  @@map("candidates")
+}
+
+model BlogPost {
+  id          String        @id @default(cuid())
+  title       String
+  content     String
+  excerpt     String
+  coverImage  String?
+  tags        String[]
+  category    String
+  status      PostStatus    @default(DRAFT)
+  author      String
+  readTime    Int
+  publishedAt DateTime?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@map("blog_posts")
+}
+
+model EmailTemplate {
+  id      String @id @default(cuid())
+  name    String
+  subject String
+  content String
+  type    EmailTemplateType
+
+  @@map("email_templates")
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  title     String
+  message   String
+  type      NotificationType
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@map("notifications")
+}
+
+enum Role {
+  ADMIN
+  MODERATOR
+}
+
+enum CourseStatus {
+  OPEN
+  IN_PROGRESS
+  CLOSED
+  COMPLETED
+}
+
+enum CandidateStatus {
+  REGISTERED
+  ACCEPTED
+  IN_TRAINING
+  COMPLETED
+  REJECTED
+}
+
+enum PostStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum EmailTemplateType {
+  WELCOME
+  ACCEPTANCE
+  REJECTION
+  REMINDER
+}
+
+enum NotificationType {
+  INFO
+  SUCCESS
+  WARNING
+  ERROR
+} 

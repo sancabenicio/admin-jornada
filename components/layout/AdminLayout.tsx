@@ -15,7 +15,9 @@ import {
   Settings,
   Bell,
   User,
-  Search
+  Search,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -37,14 +39,16 @@ interface AdminLayoutProps {
 
 export default function AdminLayout({ children }: AdminLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarMinimized, setSidebarMinimized] = useState(false);
   const pathname = usePathname();
-  const { setIsAuthenticated, notifications, adminProfile } = useAdmin();
+  const { setIsAuthenticated, notifications, adminProfile, globalSearch, setGlobalSearch } = useAdmin();
 
   const handleLogout = () => {
+    localStorage.removeItem('userData');
     setIsAuthenticated(false);
   };
 
-  const unreadNotifications = notifications.filter(n => !n.read).length;
+  const unreadNotifications = notifications.filter(n => !n.isRead).length;
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -54,9 +58,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         <div className="fixed inset-y-0 left-0 flex w-full max-w-xs flex-col bg-white shadow-2xl animate-slide-in">
           <div className="flex h-16 items-center justify-between px-6 border-b border-slate-200">
             <div className="flex items-center space-x-3">
-              <div className="h-8 w-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg">
-                <BookOpen className="h-5 w-5 text-white" />
-              </div>
+              <img src="/logo-jornada.png" alt="Logo Coração da Jornada" className="h-8 w-8 object-contain" />
               <h2 className="text-lg font-bold text-slate-900">Admin</h2>
             </div>
             <Button
@@ -94,19 +96,27 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       </div>
 
       {/* Desktop sidebar */}
-      <div className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-72 lg:flex-col">
+      <div className={`hidden lg:fixed lg:inset-y-0 lg:flex ${sidebarMinimized ? 'lg:w-20' : 'lg:w-72'} lg:flex-col transition-all duration-200`}>
         <div className="flex min-h-0 flex-1 flex-col bg-white border-r border-slate-200 shadow-sm">
           <div className="flex flex-1 flex-col overflow-y-auto pt-8 pb-4">
-            <div className="flex items-center flex-shrink-0 px-6 mb-8">
-              <div className="flex items-center space-x-3">
-                <div className="h-10 w-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg">
-                  <BookOpen className="h-6 w-6 text-white" />
-                </div>
-                <div>
-                  <h2 className="text-xl font-bold text-slate-900">Coração da Jornada</h2>
-                  <p className="text-sm text-slate-500">Painel Administrativo</p>
-                </div>
+            <div className="flex items-center flex-shrink-0 px-6 mb-8 justify-between">
+              <div className={`flex items-center space-x-3`}>
+                <img src="/logo-jornada.png" alt="Logo Coração da Jornada" className="h-10 w-10 object-contain" />
+                {!sidebarMinimized && (
+                  <div>
+                    <h2 className="text-xl font-bold text-slate-900">Coração da Jornada</h2>
+                    <p className="text-sm text-slate-500">Painel Administrativo</p>
+                  </div>
+                )}
               </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSidebarMinimized((v) => !v)}
+                className="text-slate-500 hover:text-slate-700"
+              >
+                {sidebarMinimized ? <ChevronRight className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
+              </Button>
             </div>
             <nav className="mt-2 flex-1 space-y-2 px-4">
               {navigation.map((item) => {
@@ -119,12 +129,12 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                       isActive
                         ? 'bg-blue-50 text-blue-700 shadow-sm border border-blue-100'
                         : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'
-                    }`}
+                    } ${sidebarMinimized ? 'justify-center px-2' : ''}`}
                   >
-                    <item.icon className={`mr-3 h-5 w-5 flex-shrink-0 transition-colors ${
+                    <item.icon className={`mr-0 ${sidebarMinimized ? 'h-6 w-6' : 'mr-3 h-5 w-5'} flex-shrink-0 transition-colors ${
                       isActive ? 'text-blue-600' : 'text-slate-500 group-hover:text-slate-700'
                     }`} />
-                    {item.name}
+                    {!sidebarMinimized && item.name}
                   </Link>
                 );
               })}
@@ -133,39 +143,53 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           <div className="flex-shrink-0 border-t border-slate-200 p-4">
             <div className="flex items-center space-x-3">
               <div className="flex-shrink-0">
-                <div className="h-10 w-10 bg-slate-200 rounded-full flex items-center justify-center">
-                  <User className="h-5 w-5 text-slate-600" />
+                <div className="h-10 w-10 bg-slate-200 rounded-full flex items-center justify-center overflow-hidden">
+                  {adminProfile?.avatar ? (
+                    <img src={adminProfile.avatar} alt="Avatar" className="h-10 w-10 object-cover rounded-full" />
+                  ) : (
+                    <User className="h-5 w-5 text-slate-600" />
+                  )}
                 </div>
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-slate-900 truncate">{adminProfile.name}</p>
-                <p className="text-xs text-slate-500 truncate">{adminProfile.role}</p>
-              </div>
-              <Link href="/admin/profile">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-slate-500 hover:text-slate-700"
-                >
-                  <Settings className="h-4 w-4" />
-                </Button>
-              </Link>
+              {!sidebarMinimized && (
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-slate-900 truncate">
+                    {adminProfile?.name || 'Administrador'}
+                  </p>
+                  <p className="text-xs text-slate-500 truncate">
+                    {adminProfile?.role || 'Admin'}
+                  </p>
+                </div>
+              )}
+              {!sidebarMinimized && (
+                <Link href="/admin/profile">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-slate-500 hover:text-slate-700"
+                  >
+                    <Settings className="h-4 w-4" />
+                  </Button>
+                </Link>
+              )}
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleLogout}
-              className="w-full mt-3 text-slate-500 hover:text-slate-700 justify-start"
-            >
-              <LogOut className="h-4 w-4 mr-2" />
-              Terminar Sessão
-            </Button>
+            {!sidebarMinimized && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleLogout}
+                className="w-full mt-3 text-slate-500 hover:text-slate-700 justify-start"
+              >
+                <LogOut className="h-4 w-4 mr-2" />
+                Terminar Sessão
+              </Button>
+            )}
           </div>
         </div>
       </div>
 
       {/* Main content */}
-      <div className="lg:pl-72">
+      <div className={sidebarMinimized ? 'lg:pl-20' : 'lg:pl-72'}>
         {/* Top bar */}
         <div className="sticky top-0 z-40 bg-white/95 backdrop-blur-sm border-b border-slate-200 shadow-sm">
           <div className="flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
@@ -185,6 +209,8 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                 <Input
                   placeholder="Pesquisar..."
                   className="pl-10 w-64 bg-slate-50 border-slate-200 focus:bg-white"
+                  value={globalSearch}
+                  onChange={e => setGlobalSearch(e.target.value)}
                 />
               </div>
             </div>

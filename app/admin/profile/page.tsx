@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -9,50 +9,82 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { User, Mail, Phone, Calendar, Shield, Camera, Save, Key } from 'lucide-react';
 import { useAdmin } from '@/contexts/AdminContext';
+import { uploadImageToCloudinary } from '@/lib/services/cloudinary.service';
+import { profileService } from '@/lib/services/profile.service';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 export default function ProfilePage() {
   const { adminProfile, updateAdminProfile } = useAdmin();
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
-    name: adminProfile.name,
-    email: adminProfile.email,
-    phone: adminProfile.phone || '',
-    department: adminProfile.department || '',
+    name: adminProfile?.name || '',
+    email: adminProfile?.email || '',
+    phone: adminProfile?.phone || '',
+    department: adminProfile?.department || '',
   });
   const [passwordData, setPasswordData] = useState({
     currentPassword: '',
     newPassword: '',
     confirmPassword: '',
   });
+  const [passwordLoading, setPasswordLoading] = useState(false);
+  const [passwordSuccess, setPasswordSuccess] = useState(false);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+
+  // Update form data when adminProfile is loaded
+  useEffect(() => {
+    if (adminProfile) {
+      setFormData({
+        name: adminProfile.name || '',
+        email: adminProfile.email || '',
+        phone: adminProfile.phone || '',
+        department: adminProfile.department || '',
+      });
+    }
+  }, [adminProfile]);
 
   const handleSaveProfile = () => {
     updateAdminProfile(formData);
     setIsEditing(false);
   };
 
-  const handlePasswordChange = () => {
+  const handlePasswordChange = async () => {
+    setPasswordError(null);
     if (passwordData.newPassword !== passwordData.confirmPassword) {
-      alert('As palavras-passe não coincidem');
+      setPasswordError('As palavras-passe não coincidem');
       return;
     }
-    // Simulate password change
-    alert('Palavra-passe alterada com sucesso!');
-    setPasswordData({
-      currentPassword: '',
-      newPassword: '',
-      confirmPassword: '',
-    });
+    setPasswordLoading(true);
+    try {
+      await profileService.changePassword(passwordData.currentPassword, passwordData.newPassword);
+      setPasswordSuccess(true);
+      setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+    } catch (err: any) {
+      setPasswordError(err.message || 'Erro ao alterar palavra-passe');
+    } finally {
+      setPasswordLoading(false);
+    }
   };
 
-  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const imageUrl = e.target?.result as string;
-        updateAdminProfile({ avatar: imageUrl });
-      };
-      reader.readAsDataURL(file);
+      try {
+        // Mostrar preview temporário
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const imageUrl = e.target?.result as string;
+          updateAdminProfile({ avatar: imageUrl });
+        };
+        reader.readAsDataURL(file);
+        
+        // Upload para Cloudinary
+        const cloudinaryUrl = await uploadImageToCloudinary(file);
+        updateAdminProfile({ avatar: cloudinaryUrl });
+      } catch (error) {
+        console.error('Erro ao fazer upload da imagem:', error);
+        alert('Erro ao fazer upload da imagem. Tente novamente.');
+      }
     }
   };
 
@@ -69,7 +101,7 @@ export default function ProfilePage() {
           <CardHeader className="text-center">
             <div className="relative mx-auto mb-4">
               <div className="h-24 w-24 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center mx-auto shadow-lg">
-                {adminProfile.avatar ? (
+                {adminProfile?.avatar ? (
                   <img
                     src={adminProfile.avatar}
                     alt="Avatar"
@@ -86,23 +118,24 @@ export default function ProfilePage() {
                   accept="image/*"
                   onChange={handleImageUpload}
                   className="hidden"
+                  aria-label="Upload avatar"
                 />
               </label>
             </div>
-            <CardTitle className="text-xl">{adminProfile.name}</CardTitle>
-            <CardDescription>{adminProfile.email}</CardDescription>
+            <CardTitle className="text-xl">{adminProfile?.name || 'Carregando...'}</CardTitle>
+            <CardDescription>{adminProfile?.email || 'carregando@email.com'}</CardDescription>
             <Badge className="mx-auto mt-2 bg-blue-100 text-blue-800">
-              {adminProfile.role}
+              {adminProfile?.role || 'Admin'}
             </Badge>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center space-x-3 text-sm">
               <Calendar className="h-4 w-4 text-slate-500" />
               <span className="text-slate-600">
-                Membro desde {new Date(adminProfile.joinedAt).toLocaleDateString('pt-PT')}
+                Membro desde {adminProfile?.joinedAt ? new Date(adminProfile.joinedAt).toLocaleDateString('pt-PT') : 'Carregando...'}
               </span>
             </div>
-            {adminProfile.lastLogin && (
+            {adminProfile?.lastLogin && (
               <div className="flex items-center space-x-3 text-sm">
                 <Shield className="h-4 w-4 text-slate-500" />
                 <span className="text-slate-600">
@@ -151,8 +184,7 @@ export default function ProfilePage() {
                         id="email"
                         type="email"
                         value={formData.email}
-                        onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                        disabled={!isEditing}
+                        disabled
                         className="pl-10"
                       />
                     </div>
@@ -251,11 +283,24 @@ export default function ProfilePage() {
                 <div className="flex justify-end">
                   <Button 
                     onClick={handlePasswordChange}
-                    disabled={!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword}
+                    disabled={!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword || passwordLoading}
                   >
-                    Alterar Palavra-passe
+                    {passwordLoading ? 'A alterar...' : 'Alterar Palavra-passe'}
                   </Button>
                 </div>
+                <Dialog open={passwordSuccess} onOpenChange={setPasswordSuccess}>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Palavra-passe alterada</DialogTitle>
+                    </DialogHeader>
+                    <div className="text-green-700 text-lg font-semibold py-4 text-center">
+                      Palavra-passe alterada com sucesso!
+                    </div>
+                    <div className="flex justify-end">
+                      <Button onClick={() => setPasswordSuccess(false)} className="bg-blue-600 hover:bg-blue-700">OK</Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
               </TabsContent>
             </Tabs>
           </CardContent>

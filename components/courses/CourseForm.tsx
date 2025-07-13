@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Upload, X, Image as ImageIcon } from 'lucide-react';
 import { Course, CourseStatus } from '@/types';
 import { useAdmin } from '@/contexts/AdminContext';
+import { uploadImageToCloudinary } from '@/lib/services/cloudinary.service';
 
 interface CourseFormProps {
   course?: Course;
@@ -19,12 +20,20 @@ interface CourseFormProps {
 
 export default function CourseForm({ course, onSubmit, onCancel }: CourseFormProps) {
   const { addCourse, updateCourse } = useAdmin();
+  function toDateInputValue(dateString?: string) {
+    if (!dateString) return '';
+    const d = new Date(dateString);
+    if (isNaN(d.getTime())) return '';
+    const off = d.getTimezoneOffset();
+    d.setMinutes(d.getMinutes() - off);
+    return d.toISOString().slice(0, 10);
+  }
   const [formData, setFormData] = useState({
     name: course?.name || '',
     description: course?.description || '',
     duration: course?.duration || '',
-    startDate: course?.startDate || '',
-    endDate: course?.endDate || '',
+    startDate: course ? toDateInputValue(course.startDate) : '',
+    endDate: course ? toDateInputValue(course.endDate) : '',
     maxStudents: course?.maxStudents || 20,
     applicationLimit: course?.applicationLimit || 40,
     status: course?.status || 'Aberto' as CourseStatus,
@@ -32,30 +41,71 @@ export default function CourseForm({ course, onSubmit, onCancel }: CourseFormPro
     price: course?.price || 0,
     location: course?.location || ''
   });
+  const [dateError, setDateError] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (course) {
-      updateCourse(course.id, formData);
-    } else {
-      addCourse(formData);
+    setDateError(null);
+    const hoje = new Date();
+    hoje.setHours(0,0,0,0);
+    const dataInicio = formData.startDate ? new Date(formData.startDate) : null;
+    const dataFim = formData.endDate ? new Date(formData.endDate) : null;
+    if (dataInicio && dataFim && dataInicio > dataFim) {
+      setDateError('A data de início não pode ser posterior à data de fim.');
+      return;
     }
-    onSubmit();
+    if (dataInicio && dataInicio < hoje) {
+      setDateError('A data de início não pode ser anterior à data atual.');
+      return;
+    }
+    const startDateISO = formData.startDate ? new Date(formData.startDate).toISOString() : '';
+    const endDateISO = formData.endDate ? new Date(formData.endDate).toISOString() : '';
+    const dataToSend = {
+      ...formData,
+      startDate: startDateISO,
+      endDate: endDateISO,
+      maxStudents: Number(formData.maxStudents),
+      applicationLimit: Number(formData.applicationLimit),
+      price: Number(formData.price)
+    };
+    try {
+      if (course) {
+        await updateCourse(course.id, dataToSend);
+      } else {
+        await addCourse(dataToSend);
+      }
+      onSubmit();
+    } catch (err: any) {
+      if (err.message && err.message.includes('Dados inválidos')) {
+        setDateError('Dados inválidos: verifique todos os campos e as datas.');
+      } else {
+        setDateError('Erro ao criar curso.');
+      }
+    }
   };
 
   const handleChange = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const imageUrl = e.target?.result as string;
-        handleChange('image', imageUrl);
-      };
-      reader.readAsDataURL(file);
+      try {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const imageUrl = e.target?.result as string;
+          handleChange('image', imageUrl);
+        };
+        reader.readAsDataURL(file);
+        
+        // Upload para Cloudinary
+        const cloudinaryUrl = await uploadImageToCloudinary(file);
+        handleChange('image', cloudinaryUrl);
+      } catch (error) {
+        console.error('Erro ao fazer upload da imagem:', error);
+        alert('Erro ao fazer upload da imagem. Tente novamente.');
+      }
     }
   };
 
@@ -73,6 +123,9 @@ export default function CourseForm({ course, onSubmit, onCancel }: CourseFormPro
         </CardHeader>
         <CardContent className="p-6">
           <form onSubmit={handleSubmit} className="space-y-6">
+            {dateError && (
+              <div className="text-red-600 text-sm font-medium mb-2">{dateError}</div>
+            )}
             {/* Course Image */}
             <div className="space-y-4">
               <Label className="text-base font-medium">Imagem do Curso</Label>
@@ -240,10 +293,10 @@ export default function CourseForm({ course, onSubmit, onCancel }: CourseFormPro
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Aberto">Aberto</SelectItem>
-                    <SelectItem value="Fechado">Fechado</SelectItem>
-                    <SelectItem value="Em Curso">Em Curso</SelectItem>
-                    <SelectItem value="Concluído">Concluído</SelectItem>
+                    <SelectItem value="OPEN">Aberto</SelectItem>
+                    <SelectItem value="CLOSED">Fechado</SelectItem>
+                    <SelectItem value="IN_PROGRESS">Em andamento</SelectItem>
+                    <SelectItem value="COMPLETED">Concluído</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

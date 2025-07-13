@@ -1,0 +1,6 @@
+{
+  "name": "Admin Jornada",
+  "description": "Sistema administrativo para gestão de cursos e candidatos",
+  "version": "1.0.0",
+  "type": "web-application"
+} 

@@ -9,6 +9,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BlogPost, BlogStatus } from '@/types';
 import { useAdmin } from '@/contexts/AdminContext';
+import { translateBlogStatus } from '@/lib/utils';
+import { uploadImageToCloudinary } from '@/lib/services/cloudinary.service';
+import { Upload, X, Image as ImageIcon } from 'lucide-react';
 
 interface BlogFormProps {
   post?: BlogPost;
@@ -25,7 +28,7 @@ export default function BlogForm({ post, onSubmit, onCancel }: BlogFormProps) {
     coverImage: post?.coverImage || '',
     tags: post?.tags?.join(', ') || '',
     category: post?.category || '',
-    status: post?.status || 'Rascunho' as BlogStatus,
+    status: post?.status || 'DRAFT' as BlogStatus,
     publishedAt: post?.publishedAt || ''
   });
 
@@ -34,7 +37,9 @@ export default function BlogForm({ post, onSubmit, onCancel }: BlogFormProps) {
     const postData = {
       ...formData,
       tags: formData.tags.split(',').map(tag => tag.trim()).filter(tag => tag),
-      publishedAt: formData.status === 'Publicado' ? new Date().toISOString() : formData.publishedAt
+      publishedAt: formData.status === 'PUBLISHED' ? new Date().toISOString() : formData.publishedAt,
+      author: 'Admin', // Valor padrão para o autor
+      readTime: Math.ceil(formData.content.split(' ').length / 200) // Estimativa baseada em 200 palavras por minuto
     };
 
     if (post) {
@@ -47,6 +52,32 @@ export default function BlogForm({ post, onSubmit, onCancel }: BlogFormProps) {
 
   const handleChange = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      try {
+        // Mostrar loading ou preview temporário
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const imageUrl = e.target?.result as string;
+          handleChange('coverImage', imageUrl);
+        };
+        reader.readAsDataURL(file);
+        
+        // Upload para Cloudinary
+        const cloudinaryUrl = await uploadImageToCloudinary(file);
+        handleChange('coverImage', cloudinaryUrl);
+      } catch (error) {
+        console.error('Erro ao fazer upload da imagem:', error);
+        alert('Erro ao fazer upload da imagem. Tente novamente.');
+      }
+    }
+  };
+
+  const removeImage = () => {
+    handleChange('coverImage', '');
   };
 
   return (
@@ -79,14 +110,48 @@ export default function BlogForm({ post, onSubmit, onCancel }: BlogFormProps) {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="coverImage">URL da Imagem de Capa</Label>
-            <Input
-              id="coverImage"
-              type="url"
-              value={formData.coverImage}
-              onChange={(e) => handleChange('coverImage', e.target.value)}
-              placeholder="https://images.pexels.com/..."
-            />
+            <Label htmlFor="coverImage">Imagem de Capa</Label>
+            <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 hover:border-blue-400 transition-colors">
+              {formData.coverImage ? (
+                <div className="relative">
+                  <img
+                    src={formData.coverImage}
+                    alt="Cover preview"
+                    className="w-full h-32 object-cover rounded-lg"
+                  />
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="sm"
+                    onClick={removeImage}
+                    className="absolute top-2 right-2"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ) : (
+                <div className="text-center">
+                  <ImageIcon className="mx-auto h-8 w-8 text-gray-400 mb-2" />
+                  <div className="space-y-2">
+                    <label className="cursor-pointer">
+                      <span className="inline-flex items-center px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 transition-colors">
+                        <Upload className="h-3 w-3 mr-1" />
+                        Carregar Imagem
+                      </span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageUpload}
+                        className="hidden"
+                      />
+                    </label>
+                    <p className="text-xs text-gray-500">
+                      PNG, JPG, GIF até 10MB
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="space-y-2">
@@ -128,8 +193,9 @@ export default function BlogForm({ post, onSubmit, onCancel }: BlogFormProps) {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Rascunho">Rascunho</SelectItem>
-                  <SelectItem value="Publicado">Publicado</SelectItem>
+                  <SelectItem value="DRAFT">Rascunho</SelectItem>
+                  <SelectItem value="PUBLISHED">Publicado</SelectItem>
+                  <SelectItem value="ARCHIVED">Arquivado</SelectItem>
                 </SelectContent>
               </Select>
             </div>

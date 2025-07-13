@@ -1,14 +1,46 @@
 'use client';
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { BookOpen, Users, UserCheck, FileText, Mail, AlertCircle } from 'lucide-react';
 import StatsCard from '@/components/dashboard/StatsCard';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useAdmin } from '@/contexts/AdminContext';
+import { translateCourseStatus, translateCandidateStatus, translateBlogStatus } from '@/lib/utils';
 
 export default function AdminDashboard() {
   const { dashboardStats, courses, candidates, blogPosts } = useAdmin();
+
+  // Calcular dados reais para o dashboard
+  const realStats = useMemo(() => {
+    const totalCourses = courses.length;
+    const activeCourses = courses.filter(c => c.status === 'OPEN' || c.status === 'IN_PROGRESS').length;
+    const totalCandidates = candidates.length;
+    const acceptedCandidates = candidates.filter(c => c.status === 'ACCEPTED' || c.status === 'IN_TRAINING').length;
+    const publishedPosts = blogPosts.filter(p => p.status === 'PUBLISHED').length;
+    const pendingApplications = candidates.filter(c => c.status === 'REGISTERED').length;
+    
+    // Calcular taxa de aceitação
+    const acceptanceRate = totalCandidates > 0 ? Math.round((acceptedCandidates / totalCandidates) * 100) : 0;
+    
+    // Calcular candidaturas dos últimos 30 dias
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const recentApplications = candidates.filter(c => 
+      new Date(c.appliedAt) > thirtyDaysAgo
+    ).length;
+
+    return {
+      totalCourses,
+      activeCourses,
+      totalCandidates,
+      acceptedCandidates,
+      publishedPosts,
+      pendingApplications,
+      acceptanceRate,
+      recentApplications
+    };
+  }, [courses, candidates, blogPosts]);
 
   const recentCourses = courses.slice(0, 5);
   const recentCandidates = candidates.slice(0, 5);
@@ -16,22 +48,31 @@ export default function AdminDashboard() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
+      case 'OPEN':
       case 'Aberto':
         return 'bg-green-100 text-green-800';
-      case 'Em Curso':
+      case 'IN_PROGRESS':
+      case 'Em andamento':
         return 'bg-blue-100 text-blue-800';
+      case 'CLOSED':
       case 'Fechado':
         return 'bg-yellow-100 text-yellow-800';
+      case 'COMPLETED':
       case 'Concluído':
         return 'bg-gray-100 text-gray-800';
+      case 'ACCEPTED':
       case 'Aceite':
         return 'bg-green-100 text-green-800';
-      case 'Inscrito':
+      case 'REGISTERED':
+      case 'Registado':
         return 'bg-blue-100 text-blue-800';
+      case 'REJECTED':
       case 'Rejeitado':
         return 'bg-red-100 text-red-800';
+      case 'PUBLISHED':
       case 'Publicado':
         return 'bg-green-100 text-green-800';
+      case 'DRAFT':
       case 'Rascunho':
         return 'bg-gray-100 text-gray-800';
       default:
@@ -50,43 +91,43 @@ export default function AdminDashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <StatsCard
           title="Total de Cursos"
-          value={dashboardStats.totalCourses}
+          value={realStats.totalCourses}
           icon={BookOpen}
-          description={`${dashboardStats.activeCourses} ativos`}
-          trend={{ value: 12, isPositive: true }}
+          description={`${realStats.activeCourses} ativos`}
+          trend={{ value: realStats.activeCourses, isPositive: realStats.activeCourses > 0 }}
         />
         <StatsCard
           title="Candidatos"
-          value={dashboardStats.totalCandidates}
+          value={realStats.totalCandidates}
           icon={Users}
-          description={`${dashboardStats.acceptedCandidates} aceites`}
-          trend={{ value: 8, isPositive: true }}
+          description={`${realStats.acceptedCandidates} aceites`}
+          trend={{ value: realStats.recentApplications, isPositive: realStats.recentApplications > 0 }}
         />
         <StatsCard
           title="Artigos Publicados"
-          value={dashboardStats.publishedPosts}
+          value={realStats.publishedPosts}
           icon={FileText}
           description="No blog"
-          trend={{ value: 5, isPositive: true }}
+          trend={{ value: realStats.publishedPosts, isPositive: realStats.publishedPosts > 0 }}
         />
         <StatsCard
           title="Candidaturas Pendentes"
-          value={dashboardStats.pendingApplications}
+          value={realStats.pendingApplications}
           icon={AlertCircle}
           description="A aguardar revisão"
         />
         <StatsCard
           title="Taxa de Aceitação"
-          value={Math.round((dashboardStats.acceptedCandidates / dashboardStats.totalCandidates) * 100) || 0}
+          value={realStats.acceptanceRate}
           icon={UserCheck}
           description="Percentagem"
         />
         <StatsCard
-          title="Comunicações Enviadas"
-          value={47}
+          title="Candidaturas Recentes"
+          value={realStats.recentApplications}
           icon={Mail}
-          description="Este mês"
-          trend={{ value: 23, isPositive: true }}
+          description="Últimos 30 dias"
+          trend={{ value: realStats.recentApplications, isPositive: realStats.recentApplications > 0 }}
         />
       </div>
 
@@ -100,17 +141,21 @@ export default function AdminDashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {recentCourses.map((course) => (
-                <div key={course.id} className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <p className="font-medium text-sm">{course.name}</p>
-                    <p className="text-xs text-gray-500">{course.duration}</p>
+              {recentCourses.length > 0 ? (
+                recentCourses.map((course) => (
+                  <div key={course.id} className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <p className="font-medium text-sm">{course.name}</p>
+                      <p className="text-xs text-gray-500">{course.duration}</p>
+                    </div>
+                    <Badge className={getStatusColor(course.status)}>
+                      {translateCourseStatus(course.status)}
+                    </Badge>
                   </div>
-                  <Badge className={getStatusColor(course.status)}>
-                    {course.status}
-                  </Badge>
-                </div>
-              ))}
+                ))
+              ) : (
+                <p className="text-sm text-gray-500 text-center py-4">Nenhum curso encontrado</p>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -123,17 +168,21 @@ export default function AdminDashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {recentCandidates.map((candidate) => (
-                <div key={candidate.id} className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <p className="font-medium text-sm">{candidate.name}</p>
-                    <p className="text-xs text-gray-500">{candidate.courseName}</p>
+              {recentCandidates.length > 0 ? (
+                recentCandidates.map((candidate) => (
+                  <div key={candidate.id} className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <p className="font-medium text-sm">{candidate.name}</p>
+                      <p className="text-xs text-gray-500">{candidate.courseName}</p>
+                    </div>
+                    <Badge className={getStatusColor(candidate.status)}>
+                      {translateCandidateStatus(candidate.status)}
+                    </Badge>
                   </div>
-                  <Badge className={getStatusColor(candidate.status)}>
-                    {candidate.status}
-                  </Badge>
-                </div>
-              ))}
+                ))
+              ) : (
+                <p className="text-sm text-gray-500 text-center py-4">Nenhum candidato encontrado</p>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -147,17 +196,21 @@ export default function AdminDashboard() {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {recentPosts.map((post) => (
-              <div key={post.id} className="flex items-center justify-between">
-                <div className="flex-1">
-                  <p className="font-medium text-sm">{post.title}</p>
-                  <p className="text-xs text-gray-500">{post.category}</p>
+            {recentPosts.length > 0 ? (
+              recentPosts.map((post) => (
+                <div key={post.id} className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <p className="font-medium text-sm">{post.title}</p>
+                    <p className="text-xs text-gray-500">{post.category}</p>
+                  </div>
+                  <Badge className={getStatusColor(post.status)}>
+                    {translateBlogStatus(post.status)}
+                  </Badge>
                 </div>
-                <Badge className={getStatusColor(post.status)}>
-                  {post.status}
-                </Badge>
-              </div>
-            ))}
+              ))
+            ) : (
+              <p className="text-sm text-gray-500 text-center py-4">Nenhum artigo encontrado</p>
+            )}
           </div>
         </CardContent>
       </Card>

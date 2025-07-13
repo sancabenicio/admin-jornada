@@ -7,15 +7,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Plus, Search, Edit, Trash2, Calendar, Eye } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Plus, Search, Edit, Trash2, Calendar, Eye, Clock, User, Tag, FolderOpen } from 'lucide-react';
 import { useAdmin } from '@/contexts/AdminContext';
 import BlogForm from '@/components/blog/BlogForm';
 import { BlogPost, BlogStatus } from '@/types';
+import { translateBlogStatus } from '@/lib/utils';
 
 export default function BlogPage() {
   const { blogPosts, deleteBlogPost } = useAdmin();
   const [showForm, setShowForm] = useState(false);
   const [editingPost, setEditingPost] = useState<BlogPost | undefined>();
+  const [selectedPost, setSelectedPost] = useState<BlogPost | undefined>();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
@@ -52,10 +55,12 @@ export default function BlogPage() {
 
   const getStatusColor = (status: BlogStatus) => {
     switch (status) {
-      case 'Publicado':
+      case 'PUBLISHED':
         return 'bg-green-100 text-green-800';
-      case 'Rascunho':
+      case 'DRAFT':
         return 'bg-gray-100 text-gray-800';
+      case 'ARCHIVED':
+        return 'bg-yellow-100 text-yellow-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
@@ -104,8 +109,9 @@ export default function BlogPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos os estados</SelectItem>
-              <SelectItem value="Publicado">Publicado</SelectItem>
-              <SelectItem value="Rascunho">Rascunho</SelectItem>
+              <SelectItem value="PUBLISHED">Publicado</SelectItem>
+              <SelectItem value="DRAFT">Rascunho</SelectItem>
+              <SelectItem value="ARCHIVED">Arquivado</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -134,7 +140,7 @@ export default function BlogPage() {
               <div className="flex justify-between items-start">
                 <CardTitle className="text-lg line-clamp-2">{post.title}</CardTitle>
                 <Badge className={getStatusColor(post.status)}>
-                  {post.status}
+                  {translateBlogStatus(post.status)}
                 </Badge>
               </div>
             </CardHeader>
@@ -153,7 +159,7 @@ export default function BlogPage() {
                 <div className="flex items-center text-gray-500">
                   <Calendar className="h-4 w-4 mr-2" />
                   <span>
-                    {post.status === 'Publicado' && post.publishedAt 
+                    {post.status === 'PUBLISHED' && post.publishedAt 
                       ? new Date(post.publishedAt).toLocaleDateString('pt-PT')
                       : new Date(post.createdAt).toLocaleDateString('pt-PT')
                     }
@@ -174,15 +180,115 @@ export default function BlogPage() {
               </div>
 
               <div className="flex justify-end space-x-2 mt-4">
-                {post.status === 'Publicado' && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => window.open('#', '_blank')}
-                  >
-                    <Eye className="h-4 w-4" />
-                  </Button>
-                )}
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setSelectedPost(post)}
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                      <DialogTitle className="text-2xl font-bold text-gray-900">
+                        {post.title}
+                      </DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-6">
+                      {/* Imagem de capa */}
+                      {post.coverImage && (
+                        <div className="w-full h-64 overflow-hidden rounded-lg">
+                          <img
+                            src={post.coverImage}
+                            alt={post.title}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                      )}
+
+                      {/* Metadados */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 p-4 bg-gray-50 rounded-lg">
+                        <div className="flex items-center text-sm text-gray-600">
+                          <User className="h-4 w-4 mr-2" />
+                          <span>{post.author}</span>
+                        </div>
+                        <div className="flex items-center text-sm text-gray-600">
+                          <Calendar className="h-4 w-4 mr-2" />
+                          <span>
+                            {post.status === 'PUBLISHED' && post.publishedAt 
+                              ? new Date(post.publishedAt).toLocaleDateString('pt-PT')
+                              : new Date(post.createdAt).toLocaleDateString('pt-PT')
+                            }
+                          </span>
+                        </div>
+                        <div className="flex items-center text-sm text-gray-600">
+                          <Clock className="h-4 w-4 mr-2" />
+                          <span>{post.readTime} min de leitura</span>
+                        </div>
+                        <div className="flex items-center text-sm text-gray-600">
+                          <FolderOpen className="h-4 w-4 mr-2" />
+                          <span>{post.category}</span>
+                        </div>
+                      </div>
+
+                      {/* Status */}
+                      <div className="flex items-center gap-2">
+                        <Badge className={getStatusColor(post.status)}>
+                          {translateBlogStatus(post.status)}
+                        </Badge>
+                        {post.status === 'PUBLISHED' && (
+                          <span className="text-sm text-green-600">
+                            • Publicado em {post.publishedAt ? new Date(post.publishedAt).toLocaleDateString('pt-PT') : 'Data não disponível'}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Tags */}
+                      {post.tags.length > 0 && (
+                        <div className="flex items-center gap-2">
+                          <Tag className="h-4 w-4 text-gray-500" />
+                          <div className="flex flex-wrap gap-2">
+                            {post.tags.map(tag => (
+                              <Badge key={tag} variant="outline" className="text-sm">
+                                {tag}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Resumo */}
+                      <div className="bg-blue-50 p-4 rounded-lg">
+                        <h3 className="font-semibold text-blue-900 mb-2">Resumo</h3>
+                        <p className="text-blue-800">{post.excerpt}</p>
+                      </div>
+
+                      {/* Conteúdo */}
+                      <div>
+                        <h3 className="font-semibold text-gray-900 mb-3">Conteúdo</h3>
+                        <div className="prose prose-sm max-w-none">
+                          <div className="whitespace-pre-wrap text-gray-700 leading-relaxed">
+                            {post.content}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Informações adicionais */}
+                      <div className="border-t pt-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
+                          <div>
+                            <span className="font-medium">Criado em:</span> {new Date(post.createdAt).toLocaleDateString('pt-PT')}
+                          </div>
+                          <div>
+                            <span className="font-medium">Última atualização:</span> {new Date(post.updatedAt).toLocaleDateString('pt-PT')}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </DialogContent>
+                </Dialog>
                 <Button
                   variant="outline"
                   size="sm"

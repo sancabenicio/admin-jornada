@@ -11,6 +11,7 @@ import { Plus, Search, Edit, Trash2, Users, Calendar, MapPin, Euro } from 'lucid
 import { useAdmin } from '@/contexts/AdminContext';
 import CourseForm from '@/components/courses/CourseForm';
 import { Course, CourseStatus } from '@/types';
+import { translateCourseStatus } from '@/lib/utils';
 
 export default function CoursesPage() {
   const { courses, deleteCourse } = useAdmin();
@@ -48,13 +49,13 @@ export default function CoursesPage() {
 
   const getStatusColor = (status: CourseStatus) => {
     switch (status) {
-      case 'Aberto':
+      case 'OPEN':
         return 'bg-green-100 text-green-800 border-green-200';
-      case 'Em Curso':
+      case 'IN_PROGRESS':
         return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'Fechado':
+      case 'CLOSED':
         return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'Concluído':
+      case 'COMPLETED':
         return 'bg-slate-100 text-slate-800 border-slate-200';
       default:
         return 'bg-slate-100 text-slate-800 border-slate-200';
@@ -106,10 +107,10 @@ export default function CoursesPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todos os estados</SelectItem>
-                  <SelectItem value="Aberto">Aberto</SelectItem>
-                  <SelectItem value="Fechado">Fechado</SelectItem>
-                  <SelectItem value="Em Curso">Em Curso</SelectItem>
-                  <SelectItem value="Concluído">Concluído</SelectItem>
+                  <SelectItem value="OPEN">Aberto</SelectItem>
+                  <SelectItem value="CLOSED">Fechado</SelectItem>
+                  <SelectItem value="IN_PROGRESS">Em andamento</SelectItem>
+                  <SelectItem value="COMPLETED">Concluído</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -130,7 +131,7 @@ export default function CoursesPage() {
                 />
                 <div className="absolute top-3 right-3">
                   <Badge className={`${getStatusColor(course.status)} border`}>
-                    {course.status}
+                    {translateCourseStatus(course.status)}
                   </Badge>
                 </div>
               </div>
@@ -140,7 +141,7 @@ export default function CoursesPage() {
                 <CardTitle className="text-lg line-clamp-2 text-slate-900">{course.name}</CardTitle>
                 {!course.image && (
                   <Badge className={`${getStatusColor(course.status)} border ml-2`}>
-                    {course.status}
+                    {translateCourseStatus(course.status)}
                   </Badge>
                 )}
               </div>
