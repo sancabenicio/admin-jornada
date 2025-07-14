@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,9 +13,19 @@ import { Mail, Send, Users, BookOpen, Wifi } from 'lucide-react';
 import { useAdmin } from '@/contexts/AdminContext';
 import { translateCandidateStatus } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { v4 as uuidv4 } from 'uuid';
+import { EmailTemplate } from '@/types';
+
+// Função utilitária para extrair variáveis do texto do template
+function extractVariables(text: string): string[] {
+  const matches = text.matchAll(/\{(\w+)\}/g);
+  const vars = Array.from(matches, m => m[1]);
+  // Remover duplicados
+  return Array.from(new Set(vars));
+}
 
 export default function CommunicationPage() {
-  const { candidates, courses, emailTemplates } = useAdmin();
+  const { candidates, courses, emailTemplates, addEmailTemplate, deleteEmailTemplate } = useAdmin();
   const [emailData, setEmailData] = useState({
     subject: '',
     content: '',
@@ -33,7 +43,19 @@ export default function CommunicationPage() {
     failed: number;
     errors: string[];
   } | null>(null);
-  const [showSmtpSuccess, setShowSmtpSuccess] = useState(false);
+  const [showResendSuccess, setShowResendSuccess] = useState(false);
+  const [showResendError, setShowResendError] = useState<string | null>(null);
+
+  // Formulário de novo template
+  const [newTemplate, setNewTemplate] = useState({
+    name: '',
+    subject: '',
+    content: '',
+    type: 'WELCOME' as EmailTemplate['type'],
+  });
+
+  // Remover estado local de templates
+  // const [templates, setTemplates] = useState<EmailTemplate[]>(emailTemplates);
 
   const handleTemplateChange = (templateId: string) => {
     setSelectedTemplate(templateId);
@@ -119,6 +141,7 @@ export default function CommunicationPage() {
 
   const handleTestConnection = async () => {
     setIsTestingConnection(true);
+    setShowResendError(null);
     try {
       const response = await fetch('/api/communication/test', {
         method: 'POST',
@@ -127,15 +150,35 @@ export default function CommunicationPage() {
       const result = await response.json();
 
       if (result.success) {
-        setShowSmtpSuccess(true);
+        setShowResendSuccess(true);
       } else {
-        alert('Falha na conexão SMTP. Verifique as configurações.');
+        setShowResendError(result.message || 'Falha na conexão com Resend. Verifique as configurações.');
       }
     } catch (error) {
       console.error('Erro ao testar conexão:', error);
-      alert('Erro ao testar conexão SMTP');
+      setShowResendError('Erro ao testar conexão com Resend.');
     } finally {
       setIsTestingConnection(false);
+    }
+  };
+
+  // Atualizar para usar o contexto/API
+  const handleAddTemplate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTemplate.name || !newTemplate.subject || !newTemplate.content) return;
+    try {
+      await addEmailTemplate(newTemplate);
+      setNewTemplate({ name: '', subject: '', content: '', type: 'WELCOME' });
+    } catch (error) {
+      alert('Erro ao criar template.');
+    }
+  };
+
+  const handleDeleteTemplate = async (id: string) => {
+    try {
+      await deleteEmailTemplate(id);
+    } catch (error) {
+      alert('Erro ao remover template.');
     }
   };
 
@@ -164,6 +207,13 @@ export default function CommunicationPage() {
           )}
         </Button>
       </div>
+
+      {showResendError && (
+        <div className="flex items-center space-x-2 bg-red-100 border border-red-300 text-red-700 rounded p-3 my-4">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9 9 4.03 9 9z" /></svg>
+          <span>{showResendError}</span>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Email Form */}
@@ -360,14 +410,24 @@ export default function CommunicationPage() {
                 </div>
               </div>
               {lastEmailResult.errors.length > 0 && (
-                <div>
-                  <h4 className="font-medium text-sm mb-2">Erros:</h4>
+                <div className="space-y-2">
+                  <div className="flex items-center space-x-2 bg-red-100 border border-red-300 text-red-700 rounded p-3">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9 9 4.03 9 9z" /></svg>
+                    <span className="font-medium">Alguns emails não foram enviados:</span>
+                  </div>
                   <div className="max-h-32 overflow-y-auto space-y-1">
-                    {lastEmailResult.errors.map((error, index) => (
-                      <div key={index} className="text-xs text-red-600 bg-red-50 p-2 rounded">
-                        {error}
-                      </div>
-                    ))}
+                    {lastEmailResult.errors.map((error, index) => {
+                      // Extrair apenas a mensagem amigável
+                      const match = error.match(/Erro ao enviar para ([^:]+): (.*)/);
+                      const email = match ? match[1] : null;
+                      const message = match ? match[2] : error;
+                      return (
+                        <div key={index} className="text-xs text-red-700 bg-red-50 p-2 rounded flex items-center gap-2">
+                          {email && <span className="font-semibold">{email}:</span>}
+                          <span>{message}</span>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -376,6 +436,42 @@ export default function CommunicationPage() {
         </Card>
       )}
 
+      {/* Criar Novo Template */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Criar Novo Template</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleAddTemplate} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="template-name">Nome</Label>
+              <Input id="template-name" value={newTemplate.name} onChange={e => setNewTemplate(t => ({ ...t, name: e.target.value }))} required />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="template-type">Tipo</Label>
+              <Select value={newTemplate.type} onValueChange={value => setNewTemplate(t => ({ ...t, type: value as EmailTemplate['type'] }))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="WELCOME">Boas-vindas</SelectItem>
+                  <SelectItem value="ACCEPTANCE">Aceitação</SelectItem>
+                  <SelectItem value="REJECTION">Rejeição</SelectItem>
+                  <SelectItem value="REMINDER">Lembrete</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="template-subject">Assunto</Label>
+              <Input id="template-subject" value={newTemplate.subject} onChange={e => setNewTemplate(t => ({ ...t, subject: e.target.value }))} required />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="template-content">Conteúdo</Label>
+              <Textarea id="template-content" value={newTemplate.content} onChange={e => setNewTemplate(t => ({ ...t, content: e.target.value }))} required rows={5} />
+            </div>
+            <Button type="submit">Adicionar Template</Button>
+          </form>
+        </CardContent>
+      </Card>
+
       {/* Templates */}
       <Card>
         <CardHeader>
@@ -383,47 +479,42 @@ export default function CommunicationPage() {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {emailTemplates.map(template => (
-              <div key={template.id} className="p-4 border rounded-lg">
-                <h3 className="font-medium mb-2">{template.name}</h3>
-                <p className="text-sm text-gray-600 mb-2">{template.subject}</p>
-                <p className="text-sm text-gray-500 mb-3 line-clamp-2">{template.content}</p>
-                <div className="flex flex-wrap gap-1">
-                  <Badge variant="outline" className="text-xs">
-                    {'{nome}'}
-                  </Badge>
-                  <Badge variant="outline" className="text-xs">
-                    {'{email}'}
-                  </Badge>
-                  <Badge variant="outline" className="text-xs">
-                    {'{curso}'}
-                  </Badge>
-                  <Badge variant="outline" className="text-xs">
-                    {'{estado}'}
-                  </Badge>
-                  <Badge variant="outline" className="text-xs">
-                    {'{pais}'}
-                  </Badge>
-                  <Badge variant="outline" className="text-xs">
-                    {'{telefone}'}
-                  </Badge>
+            {emailTemplates.map(template => {
+              const variables = Array.from(new Set([
+                ...extractVariables(template.subject),
+                ...extractVariables(template.content)
+              ]));
+              return (
+                <div key={template.id} className="p-4 border rounded-lg relative">
+                  <button onClick={() => handleDeleteTemplate(template.id)} className="absolute top-2 right-2 text-red-500 hover:text-red-700" title="Remover">&times;</button>
+                  <h3 className="font-medium mb-2">{template.name}</h3>
+                  <span className="text-xs bg-gray-100 rounded px-2 py-1 mr-2">{template.type}</span>
+                  <p className="text-sm text-gray-600 mb-2">{template.subject}</p>
+                  <p className="text-sm text-gray-500 mb-3 line-clamp-2">{template.content}</p>
+                  <div className="flex flex-wrap gap-1">
+                    {variables.map(variable => (
+                      <Badge key={variable} variant="outline" className="text-xs">
+                        {'{' + variable + '}'}
+                      </Badge>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </CardContent>
       </Card>
 
-      <Dialog open={showSmtpSuccess} onOpenChange={setShowSmtpSuccess}>
+      <Dialog open={showResendSuccess} onOpenChange={setShowResendSuccess}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Conexão SMTP</DialogTitle>
+            <DialogTitle>Conexão Resend</DialogTitle>
           </DialogHeader>
           <div className="text-green-700 text-lg font-semibold py-4 text-center">
-            Conexão SMTP estabelecida com sucesso!
+            Conexão com Resend estabelecida com sucesso!
           </div>
           <div className="flex justify-end">
-            <Button onClick={() => setShowSmtpSuccess(false)} className="bg-blue-600 hover:bg-blue-700">OK</Button>
+            <Button onClick={() => setShowResendSuccess(false)} className="bg-blue-600 hover:bg-blue-700">OK</Button>
           </div>
         </DialogContent>
       </Dialog>

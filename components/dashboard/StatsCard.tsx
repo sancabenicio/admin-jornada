@@ -1,11 +1,10 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { DivideIcon as LucideIcon } from 'lucide-react';
 
 interface StatsCardProps {
   title: string;
   value: number;
-  icon: LucideIcon;
+  icon: React.ComponentType<{ className?: string }>;
   description?: string;
   trend?: {
     value: number;

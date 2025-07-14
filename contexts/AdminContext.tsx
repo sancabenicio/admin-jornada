@@ -33,6 +33,9 @@ interface AdminContextType {
   
   // Email Templates
   emailTemplates: EmailTemplate[];
+  loadEmailTemplates: () => Promise<void>;
+  addEmailTemplate: (template: Omit<EmailTemplate, 'id'>) => Promise<void>;
+  deleteEmailTemplate: (id: string) => Promise<void>;
   
   // Dashboard
   dashboardStats: DashboardStats;
@@ -81,6 +84,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [adminProfile, setAdminProfile] = useState<AdminProfile | null>(null);
   const [globalSearch, setGlobalSearch] = useState('');
+  const [emailTemplates, setEmailTemplates] = useState<EmailTemplate[]>([]);
   
   // Initialize authentication state from localStorage
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
@@ -106,6 +110,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     loadCourses();
     loadCandidates();
     loadBlogPosts();
+    loadEmailTemplates();
     
     // Load admin profile if authenticated
     if (isAuthenticated) {
@@ -248,6 +253,42 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
+  const loadEmailTemplates = async () => {
+    try {
+      const res = await fetch('/api/email-templates');
+      const data = await res.json();
+      setEmailTemplates(data);
+    } catch (error) {
+      console.error('Erro ao carregar templates de email:', error);
+    }
+  };
+
+  const addEmailTemplate = async (template: Omit<EmailTemplate, 'id'>) => {
+    try {
+      const res = await fetch('/api/email-templates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(template),
+      });
+      if (!res.ok) throw new Error('Erro ao criar template');
+      await loadEmailTemplates();
+    } catch (error) {
+      console.error('Erro ao criar template de email:', error);
+      throw error;
+    }
+  };
+
+  const deleteEmailTemplate = async (id: string) => {
+    try {
+      const res = await fetch(`/api/email-templates/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Erro ao remover template');
+      await loadEmailTemplates();
+    } catch (error) {
+      console.error('Erro ao remover template de email:', error);
+      throw error;
+    }
+  };
+
   const markNotificationAsRead = (id: string) => {
     setNotifications(prev => prev.map(notification => 
       notification.id === id ? { ...notification, isRead: true } : notification
@@ -310,7 +351,10 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     addBlogPost,
     updateBlogPost,
     deleteBlogPost,
-    emailTemplates: [],
+    emailTemplates,
+    loadEmailTemplates,
+    addEmailTemplate,
+    deleteEmailTemplate,
     dashboardStats: {
       totalCandidates: candidates.length,
       totalCourses: courses.length,

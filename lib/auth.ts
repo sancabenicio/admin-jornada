@@ -60,7 +60,7 @@ export const authOptions: NextAuthOptions = {
             email: user.email,
             name: user.name,
             role: user.role,
-            avatar: user.avatar
+            avatar: user.avatar ?? undefined
           };
         } catch (error) {
           console.error('Erro na autenticação:', error);

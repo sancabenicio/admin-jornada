@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -10,7 +10,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 
-export default function ResetPasswordPage() {
+function ResetPasswordContent() {
   const searchParams = useSearchParams();
   const token = searchParams.get('token');
   
@@ -266,24 +266,39 @@ export default function ResetPasswordPage() {
                 </Button>
               </div>
             </div>
-            <Button type="submit" className="w-full" disabled={isLoading}>
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={isLoading}
+            >
               {isLoading ? 'A alterar...' : 'Alterar Palavra-passe'}
             </Button>
           </form>
-          
           <div className="mt-4 text-center">
-            <Link href="/">
-              <Button 
-                variant="link" 
-                className="text-sm text-gray-600 hover:text-gray-800 p-0 h-auto"
-              >
-                <ArrowLeft className="h-4 w-4 mr-1" />
-                Voltar ao Login
-              </Button>
+            <Link href="/" className="flex items-center justify-center text-sm text-gray-600 hover:text-gray-800">
+              <ArrowLeft className="h-4 w-4 mr-1" />
+              Voltar ao Login
             </Link>
           </div>
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 px-4">
+        <Card className="w-full max-w-md">
+          <CardContent className="text-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Carregando...</p>
+          </CardContent>
+        </Card>
+      </div>
+    }>
+      <ResetPasswordContent />
+    </Suspense>
   );
 } 

@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 import crypto from 'crypto';
-import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
+
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 const forgotPasswordSchema = z.object({
   email: z.string().email('Email inválido'),
@@ -36,23 +38,11 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Configurar transporter de email
-    const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST || 'smtp.gmail.com',
-      port: parseInt(process.env.SMTP_PORT || '587'),
-      secure: false,
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-      },
-    });
-
     const resetUrl = `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/reset-password?token=${resetToken}`;
 
-    // Enviar email
-    await transporter.sendMail({
-      from: process.env.SMTP_USER,
-      to: email,
+    const { data, error } = await resend.emails.send({
+      from: 'Jornada Porto <noreply@jornarda-porto.pt>',
+      to: [email],
       subject: 'Recuperação de Palavra-passe - Coração da Jornada',
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
@@ -90,6 +80,16 @@ export async function POST(request: NextRequest) {
         </div>
       `,
     });
+
+    if (error) {
+      console.error('Erro ao enviar email:', error);
+      return NextResponse.json(
+        { error: 'Erro ao enviar email de recuperação' },
+        { status: 500 }
+      );
+    }
+
+    console.log('Email de recuperação enviado:', data);
 
     return NextResponse.json({ 
       success: true, 

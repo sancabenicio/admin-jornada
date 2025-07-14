@@ -8,19 +8,19 @@ export async function POST(request: NextRequest) {
     if (isConnected) {
       return NextResponse.json({
         success: true,
-        message: 'Conexão SMTP estabelecida com sucesso'
+        message: 'Conexão com Resend estabelecida com sucesso'
       });
     } else {
       return NextResponse.json({
         success: false,
-        message: 'Falha na conexão SMTP'
+        message: 'Falha na conexão com Resend'
       }, { status: 500 });
     }
   } catch (error) {
-    console.error('Erro ao testar conexão SMTP:', error);
+    console.error('Erro ao testar conexão com Resend:', error);
     return NextResponse.json({
       success: false,
-      message: 'Erro ao testar conexão SMTP'
+      message: 'Erro ao testar conexão com Resend'
     }, { status: 500 });
   }
 } 
