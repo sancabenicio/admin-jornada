@@ -42,9 +42,11 @@ interface AdminContextType {
   
   // Notifications
   notifications: Notification[];
-  markNotificationAsRead: (id: string) => void;
-  markAllNotificationsAsRead: () => void;
-  addNotification: (notification: Omit<Notification, 'id' | 'timestamp'>) => void;
+  loadNotifications: () => Promise<void>;
+  markNotificationAsRead: (id: string) => Promise<void>;
+  markAllNotificationsAsRead: () => Promise<void>;
+  addNotification: (notificationData: Omit<Notification, 'id' | 'createdAt'>) => Promise<void>;
+  deleteNotification: (id: string) => Promise<void>;
   
   // Admin Profile
   adminProfile: AdminProfile | null;
@@ -111,6 +113,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     loadCandidates();
     loadBlogPosts();
     loadEmailTemplates();
+    loadNotifications();
     
     // Load admin profile if authenticated
     if (isAuthenticated) {
@@ -289,23 +292,78 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  const markNotificationAsRead = (id: string) => {
-    setNotifications(prev => prev.map(notification => 
-      notification.id === id ? { ...notification, isRead: true } : notification
-    ));
+  const markNotificationAsRead = async (id: string) => {
+    try {
+      await fetch(`/api/notifications/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      setNotifications(prev => prev.map(notification => 
+        notification.id === id ? { ...notification, isRead: true } : notification
+      ));
+    } catch (error) {
+      console.error('Erro ao marcar notificação como lida:', error);
+    }
   };
 
-  const markAllNotificationsAsRead = () => {
-    setNotifications(prev => prev.map(notification => ({ ...notification, isRead: true })));
+  const markAllNotificationsAsRead = async () => {
+    try {
+      // Marcar todas as notificações não lidas
+      const unreadNotifications = notifications.filter(n => !n.isRead);
+      await Promise.all(
+        unreadNotifications.map(notification =>
+          fetch(`/api/notifications/${notification.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' }
+          })
+        )
+      );
+      setNotifications(prev => prev.map(notification => ({ ...notification, isRead: true })));
+    } catch (error) {
+      console.error('Erro ao marcar todas as notificações como lidas:', error);
+    }
   };
 
-  const addNotification = (notificationData: Omit<Notification, 'id' | 'createdAt'>) => {
-    const newNotification: Notification = {
-      ...notificationData,
-      id: Date.now().toString(),
-      createdAt: new Date().toISOString()
-    };
-    setNotifications(prev => [newNotification, ...prev]);
+  const loadNotifications = async () => {
+    try {
+      const response = await fetch('/api/notifications');
+      if (response.ok) {
+        const data = await response.json();
+        setNotifications(data);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar notificações:', error);
+    }
+  };
+
+  const addNotification = async (notificationData: Omit<Notification, 'id' | 'createdAt'>) => {
+    try {
+      const response = await fetch('/api/notifications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(notificationData)
+      });
+      if (response.ok) {
+        const newNotification = await response.json();
+        setNotifications(prev => [newNotification, ...prev]);
+      }
+    } catch (error) {
+      console.error('Erro ao adicionar notificação:', error);
+    }
+  };
+
+  const deleteNotification = async (id: string) => {
+    try {
+      const response = await fetch(`/api/notifications/${id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      if (response.ok) {
+        setNotifications(prev => prev.filter(notification => notification.id !== id));
+      }
+    } catch (error) {
+      console.error('Erro ao eliminar notificação:', error);
+    }
   };
 
   const loadAdminProfile = async () => {
@@ -366,9 +424,11 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       ).length
     },
     notifications,
+    loadNotifications,
     markNotificationAsRead,
     markAllNotificationsAsRead,
     addNotification,
+    deleteNotification,
     adminProfile,
     updateAdminProfile,
     isAuthenticated,

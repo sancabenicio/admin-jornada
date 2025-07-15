@@ -45,6 +45,8 @@ export default function CommunicationPage() {
   } | null>(null);
   const [showResendSuccess, setShowResendSuccess] = useState(false);
   const [showResendError, setShowResendError] = useState<string | null>(null);
+  const [showEmailSuccess, setShowEmailSuccess] = useState(false);
+  const [showTemplateSuccess, setShowTemplateSuccess] = useState(false);
 
   // Formulário de novo template
   const [newTemplate, setNewTemplate] = useState({
@@ -122,6 +124,12 @@ export default function CommunicationPage() {
         customRecipients: []
       });
       setSelectedTemplate('');
+      
+      // Show success message with details
+      if (result.results.success > 0) {
+        setShowEmailSuccess(true);
+        setTimeout(() => setShowEmailSuccess(false), 5000); // Hide after 5 seconds
+      }
     } catch (error) {
       console.error('Erro ao enviar emails:', error);
       alert(`Erro ao enviar emails: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
@@ -169,6 +177,8 @@ export default function CommunicationPage() {
     try {
       await addEmailTemplate(newTemplate);
       setNewTemplate({ name: '', subject: '', content: '', type: 'WELCOME' });
+      setShowTemplateSuccess(true);
+      setTimeout(() => setShowTemplateSuccess(false), 3000); // Hide after 3 seconds
     } catch (error) {
       alert('Erro ao criar template.');
     }
@@ -212,6 +222,57 @@ export default function CommunicationPage() {
         <div className="flex items-center space-x-2 bg-red-100 border border-red-300 text-red-700 rounded p-3 my-4">
           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9 9 4.03 9 9z" /></svg>
           <span>{showResendError}</span>
+        </div>
+      )}
+
+      {showEmailSuccess && lastEmailResult && (
+        <div className="flex items-center justify-between bg-green-100 border border-green-300 text-green-700 rounded p-4 my-4">
+          <div className="flex items-center space-x-3">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <div>
+              <div className="font-semibold">Email enviado com sucesso!</div>
+              <div className="text-sm">
+                {lastEmailResult.success} de {lastEmailResult.success + lastEmailResult.failed} emails foram enviados.
+                {lastEmailResult.failed > 0 && ` ${lastEmailResult.failed} falharam.`}
+              </div>
+            </div>
+          </div>
+          <button 
+            onClick={() => setShowEmailSuccess(false)}
+            className="text-green-600 hover:text-green-800"
+            title="Fechar notificação"
+            aria-label="Fechar notificação de sucesso"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      )}
+
+      {showTemplateSuccess && (
+        <div className="flex items-center justify-between bg-blue-100 border border-blue-300 text-blue-700 rounded p-4 my-4">
+          <div className="flex items-center space-x-3">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <div>
+              <div className="font-semibold">Template criado com sucesso!</div>
+              <div className="text-sm">O template foi adicionado e está disponível para uso.</div>
+            </div>
+          </div>
+          <button 
+            onClick={() => setShowTemplateSuccess(false)}
+            className="text-blue-600 hover:text-blue-800"
+            title="Fechar notificação"
+            aria-label="Fechar notificação de sucesso"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
         </div>
       )}
 

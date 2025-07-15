@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Bell, Check, X, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -9,6 +10,7 @@ import { useAdmin } from '@/contexts/AdminContext';
 import { NotificationType } from '@/types';
 
 export default function NotificationDropdown() {
+  const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const { notifications, markNotificationAsRead, markAllNotificationsAsRead } = useAdmin();
 
@@ -87,9 +89,14 @@ export default function NotificationDropdown() {
                   {recentNotifications.map((notification) => (
                     <div
                       key={notification.id}
-                      className={`p-4 border-l-4 border-b border-slate-100 last:border-b-0 transition-colors hover:bg-slate-50 ${
+                      className={`p-4 border-l-4 border-b border-slate-100 last:border-b-0 transition-colors hover:bg-slate-50 cursor-pointer ${
                         !notification.isRead ? getNotificationColor(notification.type) : 'border-l-slate-200'
                       }`}
+                      onClick={() => {
+                        if (!notification.isRead) {
+                          markNotificationAsRead(notification.id);
+                        }
+                      }}
                     >
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
@@ -114,7 +121,10 @@ export default function NotificationDropdown() {
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => markNotificationAsRead(notification.id)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                markNotificationAsRead(notification.id);
+                              }}
                               className="h-6 w-6 p-0 text-slate-400 hover:text-slate-600"
                             >
                               <Check className="h-3 w-3" />
@@ -132,6 +142,10 @@ export default function NotificationDropdown() {
                     variant="ghost"
                     size="sm"
                     className="w-full text-blue-600 hover:text-blue-700"
+                    onClick={() => {
+                      setIsOpen(false);
+                      router.push('/admin/notifications');
+                    }}
                   >
                     Ver todas as notificações
                   </Button>

@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
     const resetUrl = `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/reset-password?token=${resetToken}`;
 
     const { data, error } = await resend.emails.send({
-      from: 'Jornada Porto <noreply@jornarda-porto.pt>',
+      from: 'noreply@jornada-porto.pt',
       to: [email],
       subject: 'Recuperação de Palavra-passe - Coração da Jornada',
       html: `
@@ -75,7 +75,8 @@ export async function POST(request: NextRequest) {
           <hr style="border: none; border-top: 1px solid #ddd; margin: 30px 0;">
           
           <p style="color: #888; font-size: 12px; text-align: center;">
-            Este é um email automático, não responda a esta mensagem.
+            Este é um email automático, não responda a esta mensagem.<br>
+            Para qualquer questão adicional, utilize o email: cfp@jornada-porto.pt
           </p>
         </div>
       `,

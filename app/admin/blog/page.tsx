@@ -268,10 +268,10 @@ export default function BlogPage() {
                       {/* Conteúdo */}
                       <div>
                         <h3 className="font-semibold text-gray-900 mb-3">Conteúdo</h3>
-                        <div className="prose prose-sm max-w-none">
-                          <div className="whitespace-pre-wrap text-gray-700 leading-relaxed">
-                            {post.content}
-                          </div>
+                        <div className="blog-content">
+                          <div 
+                            dangerouslySetInnerHTML={{ __html: post.content }}
+                          />
                         </div>
                       </div>
 
@@ -306,7 +306,7 @@ export default function BlogPage() {
                     <AlertDialogHeader>
                       <AlertDialogTitle>Confirmar Eliminação</AlertDialogTitle>
                       <AlertDialogDescription>
-                        Tem a certeza que deseja eliminar o artigo "{post.title}"? Esta ação não pode ser desfeita.
+                        Tem a certeza que deseja eliminar o artigo &quot;{post.title}&quot;? Esta ação não pode ser desfeita.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>

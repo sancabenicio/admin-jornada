@@ -17,7 +17,8 @@ import {
   User,
   Search,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  GraduationCap
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -29,8 +30,10 @@ const navigation = [
   { name: 'Dashboard', href: '/admin', icon: BarChart3 },
   { name: 'Cursos', href: '/admin/courses', icon: BookOpen },
   { name: 'Candidatos', href: '/admin/candidates', icon: Users },
+  { name: 'Estudantes', href: '/admin/students', icon: GraduationCap },
   { name: 'Comunicação', href: '/admin/communication', icon: Mail },
   { name: 'Blog', href: '/admin/blog', icon: FileText },
+  { name: 'Notificações', href: '/admin/notifications', icon: Bell },
 ];
 
 interface AdminLayoutProps {

@@ -70,6 +70,7 @@ model Candidate {
   certificates      String[]
   passport         String?
   attachments      String[]
+  documentNames    String[]  
 
   @@map("candidates")
 }

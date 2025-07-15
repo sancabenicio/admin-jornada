@@ -1,19 +1,21 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Plus, Search, Edit, Trash2, Users, Calendar, MapPin, Euro } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Users, Calendar, MapPin, Euro, ExternalLink } from 'lucide-react';
 import { useAdmin } from '@/contexts/AdminContext';
 import CourseForm from '@/components/courses/CourseForm';
 import { Course, CourseStatus } from '@/types';
 import { translateCourseStatus } from '@/lib/utils';
 
 export default function CoursesPage() {
+  const router = useRouter();
   const { courses, deleteCourse } = useAdmin();
   const [showForm, setShowForm] = useState(false);
   const [editingCourse, setEditingCourse] = useState<Course | undefined>();
@@ -181,6 +183,14 @@ export default function CoursesPage() {
                 <Button
                   variant="outline"
                   size="sm"
+                  onClick={() => router.push(`/admin/courses/${course.id}`)}
+                  className="border-slate-200 hover:border-green-300 hover:text-green-600"
+                >
+                  <ExternalLink className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={() => handleEditCourse(course)}
                   className="border-slate-200 hover:border-blue-300 hover:text-blue-600"
                 >
@@ -196,7 +206,7 @@ export default function CoursesPage() {
                     <AlertDialogHeader>
                       <AlertDialogTitle>Confirmar Eliminação</AlertDialogTitle>
                       <AlertDialogDescription>
-                        Tem a certeza que deseja eliminar o curso "{course.name}"? Esta ação não pode ser desfeita e todos os candidatos associados serão também eliminados.
+                        Tem a certeza que deseja eliminar o curso &quot;{course.name}&quot;? Esta ação não pode ser desfeita e todos os candidatos associados serão também eliminados.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>

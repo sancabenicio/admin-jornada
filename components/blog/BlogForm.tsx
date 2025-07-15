@@ -12,6 +12,7 @@ import { useAdmin } from '@/contexts/AdminContext';
 import { translateBlogStatus } from '@/lib/utils';
 import { uploadImageToCloudinary } from '@/lib/services/cloudinary.service';
 import { Upload, X, Image as ImageIcon } from 'lucide-react';
+import RichTextEditor from './RichTextEditor';
 
 interface BlogFormProps {
   post?: BlogPost;
@@ -156,13 +157,11 @@ export default function BlogForm({ post, onSubmit, onCancel }: BlogFormProps) {
 
           <div className="space-y-2">
             <Label htmlFor="content">Conteúdo</Label>
-            <Textarea
-              id="content"
+            <RichTextEditor
               value={formData.content}
-              onChange={(e) => handleChange('content', e.target.value)}
-              rows={12}
+              onChange={(content: string) => handleChange('content', content)}
               placeholder="Escreva o conteúdo do artigo..."
-              required
+              height="400px"
             />
           </div>
 

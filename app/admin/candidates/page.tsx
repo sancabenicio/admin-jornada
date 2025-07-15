@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -8,13 +9,15 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, Search, Edit, Trash2, Download, Mail, Phone, Check, X, FileText } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Plus, Search, Edit, Trash2, Download, Mail, Phone, Check, X, FileText, ExternalLink, ChevronDown } from 'lucide-react';
 import { useAdmin } from '@/contexts/AdminContext';
 import CandidateForm from '@/components/candidates/CandidateForm';
 import { Candidate, CandidateStatus } from '@/types';
 import { translateCandidateStatus } from '@/lib/utils';
 
 export default function CandidatesPage() {
+  const router = useRouter();
   const { candidates, deleteCandidate, updateCandidate, courses, globalSearch } = useAdmin();
   const [showForm, setShowForm] = useState(false);
   const [editingCandidate, setEditingCandidate] = useState<Candidate | undefined>();
@@ -65,21 +68,38 @@ export default function CandidatesPage() {
     }
 
     try {
-      // Para cada documento, criar um link de download
-      candidate.attachments.forEach((url, index) => {
-        const link = document.createElement('a');
-        link.href = url;
+      // Para cada documento, baixar com o nome original
+      for (let index = 0; index < candidate.attachments.length; index++) {
+        const url = candidate.attachments[index];
+        const originalName = candidate.documentNames && candidate.documentNames[index]
+          ? candidate.documentNames[index]
+          : `documento_${index + 1}`;
         
-        // Extrair nome do arquivo da URL
-        const fileName = url.split('/').pop() || `documento_${index + 1}`;
-        link.download = `${candidate.name}_${fileName}`;
-        
-        link.target = '_blank';
-        link.rel = 'noopener noreferrer';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-      });
+        try {
+          const response = await fetch(url);
+          const blob = await response.blob();
+          const link = document.createElement('a');
+          link.href = URL.createObjectURL(blob);
+          link.download = `${candidate.name}_${originalName}`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(link.href);
+          
+          // Pequeno delay entre downloads para evitar bloqueio do navegador
+          await new Promise(resolve => setTimeout(resolve, 500));
+        } catch (error) {
+          console.error(`Erro ao baixar documento ${index + 1}:`, error);
+          // Fallback
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = `${candidate.name}_${originalName}`;
+          link.target = '_blank';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        }
+      }
       
       console.log(`Descarregamento iniciado para ${candidate.attachments.length} documento(s) de ${candidate.name}`);
     } catch (error) {
@@ -92,35 +112,54 @@ export default function CandidatesPage() {
     setShowDocumentsModal(true);
   };
 
-  const handleDownloadSingleDocument = async (url: string, candidateName: string, index: number) => {
+  const handleDownloadSingleDocument = async (url: string, candidateName: string, index: number, originalName?: string) => {
     try {
+      const fileName = originalName || `documento_${index + 1}`;
+      
+      const response = await fetch(url);
+      const blob = await response.blob();
       const link = document.createElement('a');
-      link.href = url;
-      
-      // Extrair nome do arquivo da URL
-      const fileName = url.split('/').pop() || `documento_${index + 1}`;
+      link.href = URL.createObjectURL(blob);
       link.download = `${candidateName}_${fileName}`;
-      
-      link.target = '_blank';
-      link.rel = 'noopener noreferrer';
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+      URL.revokeObjectURL(link.href);
       
       console.log(`Descarregamento iniciado: ${fileName}`);
     } catch (error) {
       console.error('Erro ao descarregar documento:', error);
+      // Fallback
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${candidateName}_${originalName || `documento_${index + 1}`}`;
+      link.target = '_blank';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
     }
   };
 
-  const handleExportCandidates = () => {
+  const handleExportCandidates = (statusFilter?: string) => {
+    // Determinar quais candidatos exportar baseado no filtro
+    let candidatesToExport = filteredCandidates;
+    let statusLabel = 'todos';
+    
+    if (statusFilter && statusFilter !== 'all') {
+      candidatesToExport = filteredCandidates.filter(candidate => candidate.status === statusFilter);
+      statusLabel = translateCandidateStatus(statusFilter as CandidateStatus).toLowerCase();
+    }
+
     const csvContent = [
-      ['Nome', 'Email', 'Telefone', 'Curso', 'Estado', 'Data de Candidatura'].join(','),
-      ...filteredCandidates.map(candidate => [
+      ['Nome', 'Email', 'Telefone', 'País', 'Idade', 'Escolaridade', 'Curso', 'Estado', 'Data de Candidatura'].join(','),
+      ...candidatesToExport.map(candidate => [
         candidate.name,
         candidate.email,
         candidate.phone,
-        candidate.courseName,
+        candidate.country,
+        candidate.age || '',
+        candidate.education || '',
+        candidate.courseName || candidate.course?.name || '',
         candidate.status,
         new Date(candidate.appliedAt).toLocaleDateString('pt-PT')
       ].join(','))
@@ -130,7 +169,20 @@ export default function CandidatesPage() {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'candidatos.csv';
+    
+
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('pt-PT').replace(/\//g, '-');
+    const timeStr = now.toLocaleTimeString('pt-PT').replace(/:/g, '-').split(' ')[0];
+    
+    // Formatar nome do arquivo de forma mais amigável
+    const statusDisplay = statusFilter && statusFilter !== 'all' 
+      ? translateCandidateStatus(statusFilter as CandidateStatus)
+      : 'Todos';
+    
+    const fileName = `Candidatos_${statusDisplay}_${dateStr}.csv`;
+    
+    a.download = fileName;
     a.click();
     window.URL.revokeObjectURL(url);
   };
@@ -172,10 +224,41 @@ export default function CandidatesPage() {
           <p className="text-gray-600 mt-2">Gerir candidatos e candidaturas</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={handleExportCandidates}>
-            <Download className="h-4 w-4 mr-2" />
-            Exportar
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline">
+                <Download className="h-4 w-4 mr-2" />
+                Exportar
+                <ChevronDown className="h-4 w-4 ml-2" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem onClick={() => handleExportCandidates()}>
+                <Download className="h-4 w-4 mr-2" />
+                Exportar Todos
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleExportCandidates('REGISTERED')}>
+                <Download className="h-4 w-4 mr-2" />
+                Exportar Registados
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleExportCandidates('ACCEPTED')}>
+                <Download className="h-4 w-4 mr-2" />
+                Exportar Aceites
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleExportCandidates('IN_TRAINING')}>
+                <Download className="h-4 w-4 mr-2" />
+                Exportar Em Formação
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleExportCandidates('COMPLETED')}>
+                <Download className="h-4 w-4 mr-2" />
+                Exportar Concluídos
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleExportCandidates('REJECTED')}>
+                <Download className="h-4 w-4 mr-2" />
+                Exportar Rejeitados
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button onClick={handleAddCandidate}>
             <Plus className="h-4 w-4 mr-2" />
             Novo Candidato
@@ -235,6 +318,8 @@ export default function CandidatesPage() {
               <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">Email</th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">Telefone</th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">País</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">Idade</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">Escolaridade</th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">Curso</th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">Estado</th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">Documentos</th>
@@ -248,6 +333,8 @@ export default function CandidatesPage() {
                 <td className="px-4 py-2 whitespace-nowrap text-slate-700">{candidate.email}</td>
                 <td className="px-4 py-2 whitespace-nowrap text-slate-700">{candidate.phone}</td>
                 <td className="px-4 py-2 whitespace-nowrap text-slate-700">{candidate.country}</td>
+                <td className="px-4 py-2 whitespace-nowrap text-slate-700">{candidate.age || '-'}</td>
+                <td className="px-4 py-2 whitespace-nowrap text-slate-700">{candidate.education || '-'}</td>
                 <td className="px-4 py-2 whitespace-nowrap text-slate-700">{candidate.courseName}</td>
                 <td className="px-4 py-2 whitespace-nowrap">
                   <Badge className={getStatusColor(candidate.status)}>
@@ -285,6 +372,13 @@ export default function CandidatesPage() {
                     <Button
                       variant="outline"
                       size="sm"
+                      onClick={() => router.push(`/admin/candidates/${candidate.id}`)}
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
                       onClick={() => handleEditCandidate(candidate)}
                     >
                       <Edit className="h-4 w-4" />
@@ -299,7 +393,7 @@ export default function CandidatesPage() {
                         <AlertDialogHeader>
                           <AlertDialogTitle>Confirmar Eliminação</AlertDialogTitle>
                           <AlertDialogDescription>
-                            Tem a certeza que deseja eliminar o candidato "{candidate.name}"? Esta ação não pode ser desfeita.
+                            Tem a certeza que deseja eliminar o candidato &quot;{candidate.name}&quot;? Esta ação não pode ser desfeita.
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
@@ -356,33 +450,62 @@ export default function CandidatesPage() {
             <div className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {selectedCandidate.attachments.map((url, index) => {
-                  const fileName = url.split('/').pop() || `Documento ${index + 1}`;
-                  const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(fileName);
-                  const isPDF = /\.pdf$/i.test(fileName);
-                  
+                  const originalName = selectedCandidate.documentNames && selectedCandidate.documentNames[index]
+                    ? selectedCandidate.documentNames[index]
+                    : `Documento_${index + 1}`;
+                  const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(originalName);
+                  const isPDF = /\.pdf$/i.test(originalName);
+                  // Função para baixar
+                  const handleDownload = async () => {
+                    try {
+                      const response = await fetch(url);
+                      const blob = await response.blob();
+                      const link = document.createElement('a');
+                      link.href = URL.createObjectURL(blob);
+                      link.download = originalName;
+                      document.body.appendChild(link);
+                      link.click();
+                      document.body.removeChild(link);
+                      URL.revokeObjectURL(link.href);
+                    } catch (error) {
+                      console.error('Erro ao baixar documento:', error);
+                      // Fallback para o método anterior
+                      const link = document.createElement('a');
+                      link.href = url;
+                      link.download = originalName;
+                      link.target = '_blank';
+                      document.body.appendChild(link);
+                      link.click();
+                      document.body.removeChild(link);
+                    }
+                  };
                   return (
-                    <div key={index} className="border rounded-lg p-4 space-y-3">
+                    <div
+                      key={index}
+                      className="border rounded-lg p-4 space-y-3 cursor-pointer hover:bg-blue-50 transition-colors"
+                      onClick={handleDownload}
+                      title={`Descarregar ${originalName}`}
+                    >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-2">
                           <FileText className="h-4 w-4 text-gray-500" />
-                          <span className="font-medium text-sm">{fileName}</span>
+                          <span className="font-medium text-sm">{originalName}</span>
                         </div>
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => handleDownloadSingleDocument(url, selectedCandidate.name, index)}
+                          onClick={e => { e.stopPropagation(); handleDownload(); }}
                           className="h-8 px-2"
                         >
                           <Download className="h-3 w-3" />
                         </Button>
                       </div>
-                      
                       {/* Preview */}
                       <div className="border rounded bg-gray-50 p-2">
                         {isImage ? (
                           <img 
                             src={url} 
-                            alt={fileName}
+                            alt={originalName}
                             className="w-full h-32 object-cover rounded"
                           />
                         ) : isPDF ? (
@@ -400,6 +523,16 @@ export default function CandidatesPage() {
                             </div>
                           </div>
                         )}
+                      </div>
+                      <div className="flex justify-end pt-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={e => { e.stopPropagation(); window.open(url, '_blank'); }}
+                          className="h-8 px-2"
+                        >
+                          <FileText className="h-3 w-3 mr-1" />Ver
+                        </Button>
                       </div>
                     </div>
                   );

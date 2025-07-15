@@ -12,6 +12,33 @@ export const replaceVariables = (template: string, candidate: Candidate, course?
     .replace(/{telefone}/g, candidate.phone);
 };
 
+// Função para adicionar aviso de não responder automaticamente
+export const addNoReplyWarning = (content: string): string => {
+  const warning = `
+
+---
+IMPORTANTE: Este é um email automático. Por favor, não responda a esta mensagem.
+Para qualquer questão adicional, utilize o email: cfp@jornada-porto.pt`;
+
+  // Verificar se já tem o aviso para não duplicar
+  if (content.includes('IMPORTANTE: Este é um email automático')) {
+    return content;
+  }
+
+  return content + warning;
+};
+
+// Função para criar template HTML com aviso
+export const createEmailHTML = (content: string): string => {
+  const contentWithWarning = addNoReplyWarning(content);
+  
+  return `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; line-height: 1.6;">
+      ${contentWithWarning.replace(/\n/g, '<br>')}
+    </div>
+  `;
+};
+
 // Interface para dados do email
 export interface EmailData {
   to: string;
@@ -35,12 +62,16 @@ function getFriendlyErrorMessage(error: any): string {
 // Função para enviar email individual
 export const sendEmail = async (emailData: EmailData): Promise<boolean> => {
   try {
+    // Adicionar aviso de não responder automaticamente
+    const contentWithWarning = addNoReplyWarning(emailData.content);
+    const htmlWithWarning = emailData.html ? addNoReplyWarning(emailData.html) : createEmailHTML(emailData.content);
+
     const { data, error } = await resend.emails.send({
-      from: 'noreply@jornarda-porto.pt',
+      from: 'noreply@jornada-porto.pt',
       to: [emailData.to],
       subject: emailData.subject,
-      text: emailData.content,
-      html: emailData.html || emailData.content.replace(/\n/g, '<br>'),
+      text: contentWithWarning,
+      html: htmlWithWarning,
     });
 
     if (error) {
@@ -74,13 +105,16 @@ export const sendBulkEmail = async (
       const course = courses.find(c => c.id === candidate.courseId);
       const personalizedSubject = replaceVariables(subject, candidate, course);
       const personalizedContent = replaceVariables(content, candidate, course);
+      
+      // Adicionar aviso de não responder automaticamente
+      const contentWithWarning = addNoReplyWarning(personalizedContent);
 
       const { data, error } = await resend.emails.send({
-        from: 'noreply@jornarda-porto.pt',
+        from: 'noreply@jornada-porto.pt',
         to: [candidate.email],
         subject: personalizedSubject,
-        text: personalizedContent,
-        html: personalizedContent.replace(/\n/g, '<br>'),
+        text: contentWithWarning,
+        html: createEmailHTML(personalizedContent),
       });
 
       if (error) {
@@ -107,11 +141,13 @@ export const sendBulkEmail = async (
 export const testEmailConnection = async (): Promise<boolean> => {
   try {
     // Enviar um email de teste para verificar a conexão
+    const testContent = 'Este é um email de teste para verificar a conexão com o Resend.';
     const { data, error } = await resend.emails.send({
-      from: 'noreply@jornarda-porto.pt',
+      from: 'noreply@jornada-porto.pt',
       to: ['beniciosanca224@gmail.com'],
       subject: 'Teste de Conexão',
-      text: 'Este é um email de teste para verificar a conexão com o Resend.',
+      text: addNoReplyWarning(testContent),
+      html: createEmailHTML(testContent),
     });
 
     if (error) {

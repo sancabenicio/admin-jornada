@@ -38,10 +38,12 @@ export interface Candidate {
   age?: number;
   education?: string;
   experience?: string;
+  motivation?: string;
   submittedDocument?: string;
   certificates: string[];
   passport?: string;
   attachments: string[];
+  documentNames?: string[];
   course?: {
     id: string;
     name: string;

@@ -37,6 +37,9 @@ export default function CandidateForm({ candidate, onSubmit, onCancel }: Candida
     courseId: candidate?.courseId || '',
     courseName: candidate?.courseName || '',
     status: candidate?.status || 'REGISTERED' as CandidateStatus,
+    age: candidate?.age || '',
+    education: candidate?.education || '',
+    experience: candidate?.experience || '',
     notes: candidate?.notes || '',
     documentTypes: [] as string[],
     documents: candidate?.attachments || []
@@ -92,6 +95,9 @@ export default function CandidateForm({ candidate, onSubmit, onCancel }: Candida
         phone: formData.contact.trim(),
         courseId: formData.courseId,
         status: formData.status || 'REGISTERED',
+        age: formData.age ? parseInt(formData.age.toString()) : undefined,
+        education: formData.education || undefined,
+        experience: formData.experience || undefined,
         notes: formData.notes || '',
         attachments: [...(formData.documents || []), ...cloudinaryUrls]
       };
@@ -318,6 +324,61 @@ export default function CandidateForm({ candidate, onSubmit, onCancel }: Candida
                   )}
                 </div>
               </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="age" className="text-base font-medium">Idade</Label>
+                  <Input
+                    id="age"
+                    type="number"
+                    value={formData.age || ''}
+                    onChange={(e) => handleChange('age', e.target.value ? parseInt(e.target.value) : '')}
+                    className="h-11"
+                    placeholder="25"
+                    min="16"
+                    max="100"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="education" className="text-base font-medium">Nível de Escolaridade</Label>
+                  <Select value={formData.education || ''} onValueChange={(value) => handleChange('education', value)}>
+                    <SelectTrigger className="h-11">
+                      <SelectValue placeholder="Selecione uma opção" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Ensino Fundamental">Ensino Fundamental</SelectItem>
+                      <SelectItem value="Ensino Médio">Ensino Médio</SelectItem>
+                      <SelectItem value="Ensino Superior Incompleto">Ensino Superior Incompleto</SelectItem>
+                      <SelectItem value="Ensino Superior Completo">Ensino Superior Completo</SelectItem>
+                      <SelectItem value="Pós-graduação">Pós-graduação</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="experience" className="text-base font-medium">Experiência Profissional</Label>
+                <Textarea
+                  id="experience"
+                  value={formData.experience || ''}
+                  onChange={(e) => handleChange('experience', e.target.value)}
+                  rows={3}
+                  className="resize-none"
+                  placeholder="Descreva brevemente sua experiência profissional..."
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="notes" className="text-base font-medium">Motivação / Por que se interessa por este curso?</Label>
+                <Textarea
+                  id="notes"
+                  value={formData.notes || ''}
+                  onChange={(e) => handleChange('notes', e.target.value)}
+                  rows={4}
+                  className="resize-none"
+                  placeholder="Conte-nos sobre sua motivação para participar deste curso..."
+                />
+              </div>
             </div>
 
             {/* Course Information */}
@@ -432,7 +493,7 @@ export default function CandidateForm({ candidate, onSubmit, onCancel }: Candida
                     </div>
                   </div>
                   <div className="text-xs text-green-600 bg-green-100 p-2 rounded">
-                    <strong>Nota:</strong> O pagamento da taxa de candidatura é obrigatório para completar o processo de inscrição.
+                    <strong>Nota:</strong> O pagamento da taxa de candidatura é obrigatório para completar o processo da candidatura.
                   </div>
                 </CardContent>
               </Card>

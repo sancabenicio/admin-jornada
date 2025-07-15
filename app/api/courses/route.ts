@@ -16,6 +16,14 @@ const courseSchema = z.object({
   status: z.enum(['OPEN', 'IN_PROGRESS', 'CLOSED', 'COMPLETED']).optional()
 });
 
+// Função para adicionar headers CORS
+function addCorsHeaders(response: NextResponse) {
+  response.headers.set('Access-Control-Allow-Origin', '*');
+  response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  return response;
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = request.nextUrl;
@@ -56,13 +64,15 @@ export async function GET(request: NextRequest) {
       acceptedCount: 0 // Será calculado separadamente se necessário
     }));
 
-    return NextResponse.json(coursesWithCounts);
+    const response = NextResponse.json(coursesWithCounts);
+    return addCorsHeaders(response);
   } catch (error) {
     console.error('Erro ao buscar cursos:', error);
-    return NextResponse.json(
+    const response = NextResponse.json(
       { error: 'Erro interno do servidor' },
       { status: 500 }
     );
+    return addCorsHeaders(response);
   }
 }
 
@@ -93,19 +103,28 @@ export async function POST(request: NextRequest) {
       acceptedCount: 0
     };
 
-    return NextResponse.json(courseWithCounts, { status: 201 });
+    const response = NextResponse.json(courseWithCounts, { status: 201 });
+    return addCorsHeaders(response);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json(
+      const response = NextResponse.json(
         { error: 'Dados inválidos', details: error.errors },
         { status: 400 }
       );
+      return addCorsHeaders(response);
     }
 
     console.error('Erro ao criar curso:', error);
-    return NextResponse.json(
+    const response = NextResponse.json(
       { error: 'Erro interno do servidor' },
       { status: 500 }
     );
+    return addCorsHeaders(response);
   }
+}
+
+// Adicionar suporte para OPTIONS (preflight requests)
+export async function OPTIONS(request: NextRequest) {
+  const response = new NextResponse(null, { status: 200 });
+  return addCorsHeaders(response);
 } 
