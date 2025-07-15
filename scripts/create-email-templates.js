@@ -97,7 +97,6 @@ async function createTemplates() {
     console.log('Iniciando criação de templates de email...');
 
     for (const template of templates) {
-      // Verificar se o template já existe
       const existingTemplate = await prisma.emailTemplate.findFirst({
         where: { name: template.name }
       });
@@ -118,7 +117,6 @@ async function createTemplates() {
 
     console.log('Templates de email criados/atualizados com sucesso!');
     
-    // Listar todos os templates
     const allTemplates = await prisma.emailTemplate.findMany();
     console.log('\nTemplates disponíveis:');
     allTemplates.forEach(template => {

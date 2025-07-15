@@ -16,7 +16,6 @@ const courseSchema = z.object({
   status: z.enum(['OPEN', 'IN_PROGRESS', 'CLOSED', 'COMPLETED']).optional()
 });
 
-// Função para adicionar headers CORS
 function addCorsHeaders(response: NextResponse) {
   response.headers.set('Access-Control-Allow-Origin', '*');
   response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
@@ -24,7 +23,15 @@ function addCorsHeaders(response: NextResponse) {
   return response;
 }
 
+let cachedCourses: any = null;
+let cacheTimestamp = 0;
+const CACHE_DURATION = 60 * 1000;
+
 export async function GET(request: NextRequest) {
+  const now = Date.now();
+  if (cachedCourses && now - cacheTimestamp < CACHE_DURATION) {
+    return addCorsHeaders(NextResponse.json(cachedCourses));
+  }
   try {
     const { searchParams } = request.nextUrl;
     const status = searchParams.get('status');
@@ -45,24 +52,20 @@ export async function GET(request: NextRequest) {
 
     const courses = await prisma.course.findMany({
       where,
-      include: {
-        _count: {
-          select: {
-            candidates: true
-          }
-        }
-      },
       orderBy: {
         createdAt: 'desc'
       }
     });
 
-    // Transformar os dados para incluir contadores
     const coursesWithCounts = courses.map((course: any) => ({
       ...course,
-      candidatesCount: course._count.candidates,
-      acceptedCount: 0 // Será calculado separadamente se necessário
+      candidatesCount: 0,
+      acceptedCount: 0
     }));
+
+    // Atualiza o cache
+    cachedCourses = coursesWithCounts;
+    cacheTimestamp = now;
 
     const response = NextResponse.json(coursesWithCounts);
     return addCorsHeaders(response);
@@ -123,7 +126,6 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Adicionar suporte para OPTIONS (preflight requests)
 export async function OPTIONS(request: NextRequest) {
   const response = new NextResponse(null, { status: 200 });
   return addCorsHeaders(response);

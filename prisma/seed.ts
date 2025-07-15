@@ -4,10 +4,8 @@ import bcrypt from 'bcryptjs';
 const prisma = new PrismaClient();
 
 async function main() {
-  // Hash da senha 'admin123'
   const hashedPassword = await bcrypt.hash('admin123', 10);
 
-  // Criar usuário administrador
   const adminUser = await prisma.user.upsert({
     where: { email: 'admin@coracaodajornada.pt' },
     update: {},
@@ -22,11 +20,9 @@ async function main() {
 
   console.log('Usuário administrador criado:', adminUser);
 
-  // Limpar dados existentes
   await prisma.candidate.deleteMany({});
   await prisma.course.deleteMany({});
 
-  // Criar cursos
   const course1 = await prisma.course.create({
     data: {
       name: 'Técnico/a de Ação Educativa',
@@ -77,7 +73,6 @@ async function main() {
 
   console.log('Cursos criados:', [course1.name, course2.name, course3.name]);
 
-  // Criar candidatos para o primeiro curso
   const candidates1 = await Promise.all([
     prisma.candidate.create({
       data: {
@@ -155,7 +150,6 @@ async function main() {
     }),
   ]);
 
-  // Criar candidatos para o terceiro curso
   const candidates3 = await Promise.all([
     prisma.candidate.create({
       data: {
