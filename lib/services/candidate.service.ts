@@ -42,8 +42,30 @@ export interface CandidateFilters {
 
 class CandidateService {
   private baseUrl = '/api/candidates';
+  private cache: Candidate[] | null = null;
+  private cacheTimestamp = 0;
+  private readonly CACHE_DURATION = 30 * 1000; // 30 segundos
+
+  private canUseCache(): boolean {
+    return this.cache !== null && (Date.now() - this.cacheTimestamp < this.CACHE_DURATION);
+  }
+
+  private updateCache(candidates: Candidate[]) {
+    this.cache = candidates;
+    this.cacheTimestamp = Date.now();
+  }
+
+  private invalidateCache() {
+    this.cache = null;
+    this.cacheTimestamp = 0;
+  }
 
   async getCandidates(filters?: CandidateFilters): Promise<Candidate[]> {
+    // Se não há filtros e temos cache válido, usar cache
+    if (!filters && this.canUseCache()) {
+      return this.cache!;
+    }
+
     const params = new URLSearchParams();
     
     if (filters?.status) params.append('status', filters.status);
@@ -56,7 +78,14 @@ class CandidateService {
       throw new Error('Erro ao buscar candidatos');
     }
 
-    return response.json();
+    const candidates = await response.json();
+
+    // Atualizar cache apenas se não há filtros
+    if (!filters) {
+      this.updateCache(candidates);
+    }
+
+    return candidates;
   }
 
   async getCandidate(id: string): Promise<Candidate> {
@@ -83,7 +112,12 @@ class CandidateService {
       throw new Error(error.error || 'Erro ao criar candidato');
     }
 
-    return response.json();
+    const newCandidate = await response.json();
+    
+    // Invalidar cache após criar candidato
+    this.invalidateCache();
+    
+    return newCandidate;
   }
 
   async updateCandidate(id: string, data: UpdateCandidateData): Promise<Candidate> {
@@ -100,7 +134,12 @@ class CandidateService {
       throw new Error(error.error || 'Erro ao atualizar candidato');
     }
 
-    return response.json();
+    const updatedCandidate = await response.json();
+    
+    // Invalidar cache após atualizar candidato
+    this.invalidateCache();
+    
+    return updatedCandidate;
   }
 
   async deleteCandidate(id: string): Promise<void> {
@@ -112,10 +151,19 @@ class CandidateService {
       const error = await response.json();
       throw new Error(error.error || 'Erro ao eliminar candidato');
     }
+
+    // Invalidar cache após eliminar candidato
+    this.invalidateCache();
   }
 
   async updateStatus(id: string, status: CandidateStatus): Promise<Candidate> {
     return this.updateCandidate(id, { status });
+  }
+
+  // Método para forçar refresh do cache
+  async refreshCandidates(): Promise<Candidate[]> {
+    this.invalidateCache();
+    return this.getCandidates();
   }
 }
 

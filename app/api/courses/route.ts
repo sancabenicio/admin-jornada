@@ -16,26 +16,35 @@ const courseSchema = z.object({
   status: z.enum(['OPEN', 'IN_PROGRESS', 'CLOSED', 'COMPLETED']).optional()
 });
 
-function addCorsHeaders(response: NextResponse) {
-  response.headers.set('Access-Control-Allow-Origin', '*');
-  response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  return response;
+// Cache eficiente para cursos
+let coursesCache: any = null;
+let cacheTimestamp = 0;
+const CACHE_DURATION = 30 * 1000; // 30 segundos
+
+// Função para invalidar cache
+export function invalidateCoursesCache() {
+  coursesCache = null;
+  cacheTimestamp = 0;
 }
 
-let cachedCourses: any = null;
-let cacheTimestamp = 0;
-const CACHE_DURATION = 60 * 1000;
-
 export async function GET(request: NextRequest) {
-  const now = Date.now();
-  if (cachedCourses && now - cacheTimestamp < CACHE_DURATION) {
-    return addCorsHeaders(NextResponse.json(cachedCourses));
-  }
   try {
     const { searchParams } = request.nextUrl;
     const status = searchParams.get('status');
     const search = searchParams.get('search');
+    const forceRefresh = searchParams.get('refresh') === 'true';
+
+    // Verificar se podemos usar o cache
+    const now = Date.now();
+    const canUseCache = !forceRefresh && 
+                       coursesCache && 
+                       (now - cacheTimestamp < CACHE_DURATION) &&
+                       !status && 
+                       !search;
+
+    if (canUseCache) {
+      return NextResponse.json(coursesCache);
+    }
 
     const where: any = {};
 
@@ -54,28 +63,35 @@ export async function GET(request: NextRequest) {
       where,
       orderBy: {
         createdAt: 'desc'
+      },
+      include: {
+        _count: {
+          select: {
+            candidates: true
+          }
+        }
       }
     });
 
     const coursesWithCounts = courses.map((course: any) => ({
       ...course,
-      candidatesCount: 0,
+      candidatesCount: course._count.candidates,
       acceptedCount: 0
     }));
 
-    // Atualiza o cache
-    cachedCourses = coursesWithCounts;
-    cacheTimestamp = now;
+    // Atualizar cache apenas se não houver filtros
+    if (!status && !search) {
+      coursesCache = coursesWithCounts;
+      cacheTimestamp = now;
+    }
 
-    const response = NextResponse.json(coursesWithCounts);
-    return addCorsHeaders(response);
+    return NextResponse.json(coursesWithCounts);
   } catch (error) {
     console.error('Erro ao buscar cursos:', error);
-    const response = NextResponse.json(
+    return NextResponse.json(
       { error: 'Erro interno do servidor' },
       { status: 500 }
     );
-    return addCorsHeaders(response);
   }
 }
 
@@ -106,27 +122,27 @@ export async function POST(request: NextRequest) {
       acceptedCount: 0
     };
 
-    const response = NextResponse.json(courseWithCounts, { status: 201 });
-    return addCorsHeaders(response);
+    // Invalidar cache após criar novo curso
+    invalidateCoursesCache();
+
+    return NextResponse.json(courseWithCounts, { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      const response = NextResponse.json(
+      return NextResponse.json(
         { error: 'Dados inválidos', details: error.errors },
         { status: 400 }
       );
-      return addCorsHeaders(response);
     }
 
     console.error('Erro ao criar curso:', error);
-    const response = NextResponse.json(
+    return NextResponse.json(
       { error: 'Erro interno do servidor' },
       { status: 500 }
     );
-    return addCorsHeaders(response);
   }
 }
 
+// Adicionar suporte para OPTIONS (preflight requests)
 export async function OPTIONS(request: NextRequest) {
-  const response = new NextResponse(null, { status: 200 });
-  return addCorsHeaders(response);
+  return new NextResponse(null, { status: 200 });
 } 

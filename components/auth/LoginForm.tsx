@@ -34,8 +34,18 @@ export default function LoginForm() {
       const data = await response.json();
 
       if (response.ok && data.success) {
-        // Store user data in localStorage or context
+        // Verificar se o utilizador tem role ADMIN
+        if (data.user.role !== 'ADMIN') {
+          setError('Acesso negado. Apenas administradores podem aceder ao painel.');
+          return;
+        }
+        
+        // Store user data in localStorage and cookie
         localStorage.setItem('userData', JSON.stringify(data.user));
+        
+        // Definir cookie para o middleware
+        document.cookie = `userData=${JSON.stringify(data.user)}; path=/; max-age=86400; SameSite=Strict`;
+        
         setIsAuthenticated(true);
       } else {
         setError(data.error || 'Credenciais inválidas. Verifique o email e palavra-passe.');

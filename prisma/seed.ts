@@ -6,6 +6,7 @@ const prisma = new PrismaClient();
 async function main() {
   const hashedPassword = await bcrypt.hash('admin123', 10);
 
+  // Criar admin principal
   const adminUser = await prisma.user.upsert({
     where: { email: 'admin@coracaodajornada.pt' },
     update: {},
@@ -18,7 +19,20 @@ async function main() {
     },
   });
 
-  console.log('Usuário administrador criado:', adminUser);
+  // Criar admin profissional
+  const professionalAdmin = await prisma.user.upsert({
+    where: { email: 'profissionalcfcj@gmail.com' },
+    update: {},
+    create: {
+      email: 'profissionalcfcj@gmail.com',
+      name: 'Administrador',
+      password: hashedPassword,
+      role: 'ADMIN',
+      department: 'Administração',
+    },
+  });
+
+  console.log('Usuários administradores criados:', [adminUser.email, professionalAdmin.email]);
 
   await prisma.candidate.deleteMany({});
   await prisma.course.deleteMany({});

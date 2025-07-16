@@ -104,16 +104,38 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     profile: false
   });
 
-  // Load initial data
+
   useEffect(() => {
-    // Set auth loading to false after initial check
     setIsAuthLoading(false);
     
-    loadCourses();
-    loadCandidates();
-    loadBlogPosts();
-    loadEmailTemplates();
-    loadNotifications();
+    const loadEssentialData = async () => {
+      try {
+        await Promise.all([
+          loadCourses(),
+          loadCandidates()
+        ]);
+      } catch (error) {
+        console.error('Erro ao carregar dados essenciais:', error);
+      }
+    };
+    
+    // Carregar dados secundários em paralelo
+    const loadSecondaryData = async () => {
+      try {
+        await Promise.all([
+          loadBlogPosts(),
+          loadEmailTemplates(),
+          loadNotifications()
+        ]);
+      } catch (error) {
+        console.error('Erro ao carregar dados secundários:', error);
+      }
+    };
+    
+    // Carregar dados essenciais primeiro, depois os secundários
+    loadEssentialData().then(() => {
+      loadSecondaryData();
+    });
     
     // Load admin profile if authenticated
     if (isAuthenticated) {
@@ -308,7 +330,6 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const markAllNotificationsAsRead = async () => {
     try {
-      // Marcar todas as notificações não lidas
       const unreadNotifications = notifications.filter(n => !n.isRead);
       await Promise.all(
         unreadNotifications.map(notification =>

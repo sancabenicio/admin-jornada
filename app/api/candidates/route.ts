@@ -80,12 +80,15 @@ const candidateSchema = z.object({
   documentNames: z.array(z.string()).optional()
 });
 
-// Função para adicionar headers CORS
-function addCorsHeaders(response: NextResponse) {
-  response.headers.set('Access-Control-Allow-Origin', '*');
-  response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  return response;
+// Cache eficiente para candidatos
+let candidatesCache: any = null;
+let candidatesCacheTimestamp = 0;
+const CANDIDATES_CACHE_DURATION = 30 * 1000; // 30 segundos
+
+// Função para invalidar cache de candidatos
+export function invalidateCandidatesCache() {
+  candidatesCache = null;
+  candidatesCacheTimestamp = 0;
 }
 
 export async function GET(request: NextRequest) {
@@ -94,6 +97,20 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status');
     const courseId = searchParams.get('courseId');
     const search = searchParams.get('search');
+    const forceRefresh = searchParams.get('refresh') === 'true';
+
+    // Verificar se podemos usar o cache
+    const now = Date.now();
+    const canUseCache = !forceRefresh && 
+                       candidatesCache && 
+                       (now - candidatesCacheTimestamp < CANDIDATES_CACHE_DURATION) &&
+                       !status && 
+                       !courseId && 
+                       !search;
+
+    if (canUseCache) {
+      return NextResponse.json(candidatesCache);
+    }
 
     const where: any = {};
 
@@ -128,15 +145,19 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    const response = NextResponse.json(candidates);
-    return addCorsHeaders(response);
+    // Atualizar cache apenas se não houver filtros
+    if (!status && !courseId && !search) {
+      candidatesCache = candidates;
+      candidatesCacheTimestamp = now;
+    }
+
+    return NextResponse.json(candidates);
   } catch (error) {
     console.error('Erro ao buscar candidatos:', error);
-    const response = NextResponse.json(
+    return NextResponse.json(
       { error: 'Erro interno do servidor' },
       { status: 500 }
     );
-    return addCorsHeaders(response);
   }
 }
 
@@ -181,20 +202,18 @@ export async function POST(request: NextRequest) {
       
       // Validação dos campos obrigatórios
       if (!name || !email || !phone || !country || !courseId || !age || !education || !experience || !notes) {
-        const response = NextResponse.json(
+        return NextResponse.json(
           { error: 'Todos os campos são obrigatórios' },
           { status: 400 }
         );
-        return addCorsHeaders(response);
       }
 
       const ageNum = parseInt(age);
       if (isNaN(ageNum) || ageNum < 16 || ageNum > 100) {
-        const response = NextResponse.json(
+        return NextResponse.json(
           { error: 'Idade deve estar entre 16 e 100 anos' },
           { status: 400 }
         );
-        return addCorsHeaders(response);
       }
 
       validatedData = {
@@ -227,7 +246,7 @@ export async function POST(request: NextRequest) {
         { error: 'Curso não encontrado' },
         { status: 404 }
       );
-      return addCorsHeaders(response);
+      return NextResponse.json(response);
     }
 
     const candidate = await prisma.candidate.create({
@@ -278,10 +297,8 @@ Equipa Coração da Jornada
       console.log(`Email de confirmação enviado para ${candidate.email}`);
     } catch (emailError) {
       console.error('Erro ao enviar email de confirmação:', emailError);
-      // Não falhar a criação do candidato se o email falhar
     }
 
-    // Criar notificação para o admin
     try {
       await prisma.notification.create({
         data: {
@@ -294,28 +311,27 @@ Equipa Coração da Jornada
       console.error('Erro ao criar notificação:', notificationError);
     }
 
-    const response = NextResponse.json(candidate, { status: 201 });
-    return addCorsHeaders(response);
+          // Invalidar cache após criar candidato
+      invalidateCandidatesCache();
+
+      return NextResponse.json(candidate, { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      const response = NextResponse.json(
-        { error: 'Dados inválidos', details: error.errors },
-        { status: 400 }
-      );
-      return addCorsHeaders(response);
+              return NextResponse.json(
+          { error: 'Dados inválidos', details: error.errors },
+          { status: 400 }
+        );
     }
 
     console.error('Erro ao criar candidato:', error);
-    const response = NextResponse.json(
-      { error: 'Erro interno do servidor' },
-      { status: 500 }
-    );
-    return addCorsHeaders(response);
+          return NextResponse.json(
+        { error: 'Erro interno do servidor' },
+        { status: 500 }
+      );
   }
 }
 
 // Adicionar suporte para OPTIONS (preflight requests)
 export async function OPTIONS(request: NextRequest) {
-  const response = new NextResponse(null, { status: 200 });
-  return addCorsHeaders(response);
+  return new NextResponse(null, { status: 200 });
 } 

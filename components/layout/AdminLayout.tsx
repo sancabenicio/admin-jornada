@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
-import { usePathname } from 'next/navigation';
+import React, { useState, useEffect } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { 
   BookOpen, 
@@ -18,7 +18,8 @@ import {
   Search,
   ChevronLeft,
   ChevronRight,
-  GraduationCap
+  GraduationCap,
+  Shield
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -31,6 +32,7 @@ const navigation = [
   { name: 'Cursos', href: '/admin/courses', icon: BookOpen },
   { name: 'Candidatos', href: '/admin/candidates', icon: Users },
   { name: 'Estudantes', href: '/admin/students', icon: GraduationCap },
+  { name: 'Utilizadores', href: '/admin/users', icon: Shield },
   { name: 'Comunicação', href: '/admin/communication', icon: Mail },
   { name: 'Blog', href: '/admin/blog', icon: FileText },
   { name: 'Notificações', href: '/admin/notifications', icon: Bell },
@@ -43,15 +45,70 @@ interface AdminLayoutProps {
 export default function AdminLayout({ children }: AdminLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarMinimized, setSidebarMinimized] = useState(false);
+  const [isAuthorized, setIsAuthorized] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const pathname = usePathname();
+  const router = useRouter();
   const { setIsAuthenticated, notifications, adminProfile, globalSearch, setGlobalSearch } = useAdmin();
+
+  // Verificar autorização
+  useEffect(() => {
+    const checkAuthorization = () => {
+      try {
+        const userData = localStorage.getItem('userData');
+        if (!userData) {
+          router.push('/admin');
+          return;
+        }
+
+        const user = JSON.parse(userData);
+        if (user.role !== 'ADMIN') {
+          // Limpar dados e redirecionar
+          localStorage.removeItem('userData');
+          setIsAuthenticated(false);
+          router.push('/admin');
+          return;
+        }
+
+        setIsAuthorized(true);
+      } catch (error) {
+        console.error('Erro ao verificar autorização:', error);
+        localStorage.removeItem('userData');
+        setIsAuthenticated(false);
+        router.push('/admin');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    checkAuthorization();
+  }, [router, setIsAuthenticated]);
 
   const handleLogout = () => {
     localStorage.removeItem('userData');
+    document.cookie = 'userData=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
     setIsAuthenticated(false);
+    setIsAuthorized(false);
+    router.push('/admin');
   };
 
   const unreadNotifications = notifications.filter(n => !n.isRead).length;
+
+  // Mostrar loading enquanto verifica autorização
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-slate-600">A verificar autorização...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthorized) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -205,63 +262,30 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
               >
                 <Menu className="h-5 w-5" />
               </Button>
-              
-              {/* Search bar - hidden on mobile */}
-              <div className="hidden md:block relative">
+              <div className="relative flex-1 max-w-lg">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4" />
                 <Input
                   placeholder="Pesquisar..."
-                  className="pl-10 w-64 bg-slate-50 border-slate-200 focus:bg-white"
                   value={globalSearch}
-                  onChange={e => setGlobalSearch(e.target.value)}
+                  onChange={(e) => setGlobalSearch(e.target.value)}
+                  className="pl-10 border-slate-200 focus:border-blue-400"
                 />
               </div>
             </div>
-
             <div className="flex items-center space-x-4">
-              {/* Notifications */}
-              <div className="relative">
-                <NotificationDropdown />
-                {unreadNotifications > 0 && (
-                  <Badge 
-                    className="absolute -top-2 -right-2 h-5 w-5 rounded-full bg-red-500 text-white text-xs flex items-center justify-center p-0"
-                  >
-                    {unreadNotifications > 9 ? '9+' : unreadNotifications}
-                  </Badge>
-                )}
-              </div>
-
-              {/* Profile - mobile */}
-              <div className="lg:hidden">
-                <Link href="/admin/profile">
-                  <Button variant="ghost" size="sm" className="text-slate-500 hover:text-slate-700">
-                    <User className="h-5 w-5" />
-                  </Button>
-                </Link>
-              </div>
-
-              {/* Logout - mobile */}
-              <div className="lg:hidden">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleLogout}
-                  className="text-slate-500 hover:text-slate-700"
-                >
-                  <LogOut className="h-5 w-5" />
-                </Button>
+              <NotificationDropdown />
+              <div className="hidden sm:flex items-center space-x-2">
+                <Badge variant="secondary" className="bg-blue-100 text-blue-800 border-blue-200">
+                  Admin
+                </Badge>
               </div>
             </div>
           </div>
         </div>
 
         {/* Page content */}
-        <main className="py-6 lg:py-8">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <div className="animate-fade-in">
-              {children}
-            </div>
-          </div>
+        <main className="p-4 sm:p-6 lg:p-8">
+          {children}
         </main>
       </div>
     </div>

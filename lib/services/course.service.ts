@@ -35,8 +35,30 @@ export interface CourseFilters {
 
 class CourseService {
   private baseUrl = '/api/courses';
+  private cache: Course[] | null = null;
+  private cacheTimestamp = 0;
+  private readonly CACHE_DURATION = 30 * 1000; // 30 segundos
+
+  private canUseCache(): boolean {
+    return this.cache !== null && (Date.now() - this.cacheTimestamp < this.CACHE_DURATION);
+  }
+
+  private updateCache(courses: Course[]) {
+    this.cache = courses;
+    this.cacheTimestamp = Date.now();
+  }
+
+  private invalidateCache() {
+    this.cache = null;
+    this.cacheTimestamp = 0;
+  }
 
   async getCourses(filters?: CourseFilters): Promise<Course[]> {
+    // Se não há filtros e temos cache válido, usar cache
+    if (!filters && this.canUseCache()) {
+      return this.cache!;
+    }
+
     const params = new URLSearchParams();
     
     if (filters?.status) params.append('status', filters.status);
@@ -48,7 +70,14 @@ class CourseService {
       throw new Error('Erro ao buscar cursos');
     }
 
-    return response.json();
+    const courses = await response.json();
+
+    // Atualizar cache apenas se não há filtros
+    if (!filters) {
+      this.updateCache(courses);
+    }
+
+    return courses;
   }
 
   async getCourse(id: string): Promise<Course> {
@@ -75,7 +104,12 @@ class CourseService {
       throw new Error(error.error || 'Erro ao criar curso');
     }
 
-    return response.json();
+    const newCourse = await response.json();
+    
+    // Invalidar cache após criar curso
+    this.invalidateCache();
+    
+    return newCourse;
   }
 
   async updateCourse(id: string, data: UpdateCourseData): Promise<Course> {
@@ -92,7 +126,12 @@ class CourseService {
       throw new Error(error.error || 'Erro ao atualizar curso');
     }
 
-    return response.json();
+    const updatedCourse = await response.json();
+    
+    // Invalidar cache após atualizar curso
+    this.invalidateCache();
+    
+    return updatedCourse;
   }
 
   async deleteCourse(id: string): Promise<void> {
@@ -104,6 +143,15 @@ class CourseService {
       const error = await response.json();
       throw new Error(error.error || 'Erro ao eliminar curso');
     }
+
+    // Invalidar cache após eliminar curso
+    this.invalidateCache();
+  }
+
+  // Método para forçar refresh do cache
+  async refreshCourses(): Promise<Course[]> {
+    this.invalidateCache();
+    return this.getCourses();
   }
 }
 

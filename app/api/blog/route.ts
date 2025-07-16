@@ -84,4 +84,9 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+// Adicionar suporte para OPTIONS (preflight requests)
+export async function OPTIONS(request: NextRequest) {
+  return new NextResponse(null, { status: 200 });
 } 
