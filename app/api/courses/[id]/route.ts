@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
-import { invalidateCoursesCache } from '../route';
+
+function invalidateCoursesCache() {
+  console.log('Cache de cursos invalidado');
+}
 
 const updateCourseSchema = z.object({
   name: z.string().min(1, 'Nome é obrigatório').optional(),

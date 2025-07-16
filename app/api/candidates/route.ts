@@ -86,7 +86,7 @@ let candidatesCacheTimestamp = 0;
 const CANDIDATES_CACHE_DURATION = 30 * 1000; // 30 segundos
 
 // Função para invalidar cache de candidatos
-export function invalidateCandidatesCache() {
+function invalidateCandidatesCache() {
   candidatesCache = null;
   candidatesCacheTimestamp = 0;
 }

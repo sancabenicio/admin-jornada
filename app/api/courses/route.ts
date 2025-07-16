@@ -22,7 +22,7 @@ let cacheTimestamp = 0;
 const CACHE_DURATION = 30 * 1000; // 30 segundos
 
 // Função para invalidar cache
-export function invalidateCoursesCache() {
+function invalidateCoursesCache() {
   coursesCache = null;
   cacheTimestamp = 0;
 }
