@@ -11,12 +11,11 @@ import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Plus, Search, Edit, Trash2, Users, Calendar, MapPin, Euro, ExternalLink } from 'lucide-react';
 import { useAdmin } from '@/contexts/AdminContext';
-import { AdminGuard } from '@/components/auth/AdminGuard';
 import CourseForm from '@/components/courses/CourseForm';
 import { Course, CourseStatus } from '@/types';
 import { translateCourseStatus } from '@/lib/utils';
 
-function CoursesPageContent() {
+export default function CoursesPage() {
   const router = useRouter();
   const { courses, deleteCourse, loading, loadCourses } = useAdmin();
   const [showForm, setShowForm] = useState(false);
@@ -253,13 +252,5 @@ function CoursesPageContent() {
         </Card>
       )}
     </div>
-  );
-}
-
-export default function CoursesPage() {
-  return (
-    <AdminGuard>
-      <CoursesPageContent />
-    </AdminGuard>
   );
 }

@@ -28,32 +28,8 @@ export function middleware(request: NextRequest) {
   }
 
   // Proteger rotas admin (apenas páginas, não APIs)
-  if (pathname.startsWith('/admin') && pathname !== '/admin' && !pathname.startsWith('/api/')) {
-    // Verificar se existe token de autenticação
-    const userData = request.cookies.get('userData')?.value;
-    
-    if (!userData) {
-      // Redirecionar para login se não há dados de utilizador
-      return NextResponse.redirect(new URL('/admin', request.url));
-    }
-
-    try {
-      const user = JSON.parse(userData);
-      
-      // Verificar se o utilizador tem role ADMIN
-      if (user.role !== 'ADMIN') {
-        // Limpar cookie e redirecionar
-        const response = NextResponse.redirect(new URL('/admin', request.url));
-        response.cookies.delete('userData');
-        return response;
-      }
-    } catch (error) {
-      // Se há erro ao parsear, limpar cookie e redirecionar
-      const response = NextResponse.redirect(new URL('/admin', request.url));
-      response.cookies.delete('userData');
-      return response;
-    }
-  }
+  // Nota: A autenticação é gerida pelo frontend, não pelo middleware
+  // O middleware apenas adiciona headers CORS para APIs públicas
 
   return NextResponse.next();
 }

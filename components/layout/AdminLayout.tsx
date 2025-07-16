@@ -45,70 +45,18 @@ interface AdminLayoutProps {
 export default function AdminLayout({ children }: AdminLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarMinimized, setSidebarMinimized] = useState(false);
-  const [isAuthorized, setIsAuthorized] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
   const pathname = usePathname();
   const router = useRouter();
   const { setIsAuthenticated, notifications, adminProfile, globalSearch, setGlobalSearch } = useAdmin();
-
-  // Verificar autorização
-  useEffect(() => {
-    const checkAuthorization = () => {
-      try {
-        const userData = localStorage.getItem('userData');
-        if (!userData) {
-          router.push('/admin');
-          return;
-        }
-
-        const user = JSON.parse(userData);
-        if (user.role !== 'ADMIN') {
-          // Limpar dados e redirecionar
-          localStorage.removeItem('userData');
-          setIsAuthenticated(false);
-          router.push('/admin');
-          return;
-        }
-
-        setIsAuthorized(true);
-      } catch (error) {
-        console.error('Erro ao verificar autorização:', error);
-        localStorage.removeItem('userData');
-        setIsAuthenticated(false);
-        router.push('/admin');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    checkAuthorization();
-  }, [router, setIsAuthenticated]);
 
   const handleLogout = () => {
     localStorage.removeItem('userData');
     document.cookie = 'userData=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
     setIsAuthenticated(false);
-    setIsAuthorized(false);
     router.push('/admin');
   };
 
   const unreadNotifications = notifications.filter(n => !n.isRead).length;
-
-  // Mostrar loading enquanto verifica autorização
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-slate-600">A verificar autorização...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!isAuthorized) {
-    return null;
-  }
 
   return (
     <div className="min-h-screen bg-slate-50">

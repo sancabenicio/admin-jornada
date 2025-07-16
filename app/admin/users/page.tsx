@@ -3,15 +3,13 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Search, Edit, Trash2, User, Shield, Mail, Phone } from 'lucide-react';
-import { toast } from 'sonner';
-import { AdminGuard } from '@/components/auth/AdminGuard';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Plus, Search, Edit, Trash2, User, Mail, Shield } from 'lucide-react';
 
 interface User {
   id: string;
@@ -22,7 +20,7 @@ interface User {
   createdAt: string;
 }
 
-function UsersPageContent() {
+export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -32,93 +30,89 @@ function UsersPageContent() {
     name: '',
     email: '',
     password: '',
-    role: 'ADMIN' as 'ADMIN' | 'USER',
-    department: 'Administração'
+    role: 'USER' as 'ADMIN' | 'USER',
+    department: ''
   });
-
-  useEffect(() => {
-    loadUsers();
-  }, []);
 
   const loadUsers = async () => {
     try {
-      setLoading(true);
       const response = await fetch('/api/admin/users');
-      if (!response.ok) throw new Error('Erro ao carregar utilizadores');
-      const data = await response.json();
-      setUsers(data);
+      if (response.ok) {
+        const data = await response.json();
+        setUsers(data);
+      }
     } catch (error) {
       console.error('Erro ao carregar utilizadores:', error);
-      toast.error('Erro ao carregar utilizadores');
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    loadUsers();
+  }, []);
 
   const handleCreateUser = async () => {
     try {
       const response = await fetch('/api/admin/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(formData)
       });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Erro ao criar utilizador');
+      
+      if (response.ok) {
+        await loadUsers();
+        setShowCreateDialog(false);
+        resetForm();
       }
-
-      toast.success('Utilizador criado com sucesso!');
-      setShowCreateDialog(false);
-      resetForm();
-      loadUsers();
     } catch (error) {
       console.error('Erro ao criar utilizador:', error);
-      toast.error(error instanceof Error ? error.message : 'Erro ao criar utilizador');
     }
   };
 
   const handleUpdateUser = async () => {
     if (!editingUser) return;
-
+    
     try {
-      const response = await fetch(`/api/admin/users/${editingUser.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Erro ao atualizar utilizador');
+      const updateData = { ...formData };
+      let response;
+      
+      if (!updateData.password) {
+        const { password, ...dataWithoutPassword } = updateData;
+        response = await fetch(`/api/admin/users/${editingUser.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(dataWithoutPassword)
+        });
+      } else {
+        response = await fetch(`/api/admin/users/${editingUser.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updateData)
+        });
       }
-
-      toast.success('Utilizador atualizado com sucesso!');
-      setEditingUser(null);
-      resetForm();
-      loadUsers();
+      
+      if (response.ok) {
+        await loadUsers();
+        setEditingUser(null);
+        resetForm();
+      }
     } catch (error) {
       console.error('Erro ao atualizar utilizador:', error);
-      toast.error(error instanceof Error ? error.message : 'Erro ao atualizar utilizador');
     }
   };
 
   const handleDeleteUser = async (userId: string) => {
     try {
       const response = await fetch(`/api/admin/users/${userId}`, {
-        method: 'DELETE',
+        method: 'DELETE'
       });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Erro ao eliminar utilizador');
+      
+      if (response.ok) {
+        await loadUsers();
       }
-
-      toast.success('Utilizador eliminado com sucesso!');
-      loadUsers();
     } catch (error) {
       console.error('Erro ao eliminar utilizador:', error);
-      toast.error(error instanceof Error ? error.message : 'Erro ao eliminar utilizador');
     }
   };
 
@@ -127,8 +121,8 @@ function UsersPageContent() {
       name: '',
       email: '',
       password: '',
-      role: 'ADMIN',
-      department: 'Administração'
+      role: 'USER',
+      department: ''
     });
   };
 
@@ -144,9 +138,20 @@ function UsersPageContent() {
   };
 
   const openCreateDialog = () => {
+    setShowCreateDialog(true);
     setEditingUser(null);
     resetForm();
-    setShowCreateDialog(true);
+  };
+
+  const getRoleColor = (role: string) => {
+    switch (role) {
+      case 'ADMIN':
+        return 'bg-red-100 text-red-800 border-red-200';
+      case 'USER':
+        return 'bg-blue-100 text-blue-800 border-blue-200';
+      default:
+        return 'bg-slate-100 text-slate-800 border-slate-200';
+    }
   };
 
   const filteredUsers = users.filter(user =>
@@ -155,21 +160,19 @@ function UsersPageContent() {
     user.department.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const getRoleColor = (role: string) => {
-    return role === 'ADMIN' ? 'bg-red-100 text-red-800 border-red-200' : 'bg-blue-100 text-blue-800 border-blue-200';
-  };
-
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold text-slate-900">Gestão de Utilizadores</h1>
-          <p className="text-slate-600 mt-2">Gerir administradores e utilizadores do sistema</p>
+          <p className="text-slate-600 mt-2">Gerir utilizadores do sistema</p>
         </div>
-        <Button onClick={openCreateDialog} className="bg-blue-600 hover:bg-blue-700">
-          <Plus className="h-4 w-4 mr-2" />
-          Novo Utilizador
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={openCreateDialog} className="bg-blue-600 hover:bg-blue-700">
+            <Plus className="h-4 w-4 mr-2" />
+            Novo Utilizador
+          </Button>
+        </div>
       </div>
 
       {/* Search */}
@@ -359,13 +362,5 @@ function UsersPageContent() {
         </DialogContent>
       </Dialog>
     </div>
-  );
-}
-
-export default function UsersPage() {
-  return (
-    <AdminGuard>
-      <UsersPageContent />
-    </AdminGuard>
   );
 } 
